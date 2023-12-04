@@ -11,9 +11,14 @@ import Foundation
 struct ImageSearch: Codable {
     let meta: Meta
     let imageResults: [ImageResult]
+
+    enum CodingKeys: String, CodingKey {
+        case meta
+        case imageResults = "documents"
+    }
 }
 
-// MARK: - Document
+// MARK: - ImageResult
 struct ImageResult: Codable {
     let collection: String
     let thumbnailURL: String
@@ -21,7 +26,7 @@ struct ImageResult: Codable {
     let width, height: Int
     let displaySitename: String
     let docURL: String
-    let datetime: String
+    let datetime: Date
 
     enum CodingKeys: String, CodingKey {
         case collection

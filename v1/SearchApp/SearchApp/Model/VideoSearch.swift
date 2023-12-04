@@ -12,9 +12,14 @@ import Foundation
 struct VideoSearch: Codable {
     let meta: Meta
     let videoResults: [VideoResult]
+
+    enum CodingKeys: String, CodingKey {
+        case meta
+        case videoResults = "documents"
+    }
 }
 
-// MARK: - Document
+// MARK: - VideoResult
 struct VideoResult: Codable {
     let title: String
     let playTime: Int

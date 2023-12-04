@@ -11,10 +11,16 @@ import Foundation
 struct WebSearch: Codable {
     let meta: Meta
     let webResults: [WebResult]
+
+    enum CodingKeys: String, CodingKey {
+        case meta
+        case webResults = "documents"
+    }
 }
 
-// MARK: - Document
+// MARK: - WebResult
 struct WebResult: Codable {
-    let datetime, contents, title: String
+    let datetime: Date
+    let contents, title: String
     let url: String
 }
