@@ -6,12 +6,28 @@
 //
 
 import Foundation
+import Combine
 
 class APIService {
 
-    static let shared = APIService()
+    func getFetchResult<T: Decodable>(type: T.Type, request: URLRequest?) -> AnyPublisher<T, Error> {
 
-    init() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.sssZ"
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .formatted(formatter)
+
+        return URLSession.shared.dataTaskPublisher(for: request!)
+            .catch { error in
+                return Fail(error: APIError.transportError(error)).eraseToAnyPublisher()
+            }
+            .map { $0.data }
+            .decode(type: type, decoder: decoder)
+            .eraseToAnyPublisher()
+    }
+
+
+    // composition 이용 재사용성 증가, 모듈화.
     func fetchSearchResult<T: Decodable>(_ type: T.Type, request: URLRequest?, completion: @escaping (Result<T, APIError>) -> Void) {
 
         guard let request = request else {
