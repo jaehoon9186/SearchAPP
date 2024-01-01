@@ -19,6 +19,7 @@ class SearchViewController: UIViewController {
 
     private var searchWord: CurrentValueSubject<String, Never> = .init(" ")
     private var searchScopeNum: CurrentValueSubject<Int, Never> = .init(0)
+    private var temporarySearchWord: PassthroughSubject<String, Never> = .init()
 
     private lazy var searchBar: UISearchBar = {
         let search = UISearchBar()
@@ -33,7 +34,7 @@ class SearchViewController: UIViewController {
     // 2. 키보드 레이아웃 밖? 아웃사이드 버튼 액션
     // 3. scope bar button 액션, 그냥 버튼으로 만들어볼 것. (기존의 버튼 탭이 불가해서)
 
-    private let suggestionVC: UIViewController = {
+    private let suggestionVC: SuggestionViewController = {
         let vc = SuggestionViewController()
         vc.view.translatesAutoresizingMaskIntoConstraints = false
         return vc
@@ -74,16 +75,20 @@ class SearchViewController: UIViewController {
         let output = viewModel.transform(input: input.eraseToAnyPublisher())
         output
             .receive(on: DispatchQueue.main)
-            .sink { event in
+            .sink { [weak self] event in
                 switch event {
-                case .fetchFail(error: let error):
+                case .fetchFail(let error):
                     print(error.description)
-                case .fetchWebSucceed(result: let result, nowPage: let nowPage):
-                    self.webResultVC.updateResult(result: result, nowPage: nowPage)
-                case .fetchImageSucceed(result: let result, nowPage: let nowPage):
-                    self.imageResultVC.updateResult(result: result, nowPage: nowPage)
-                case .fetchVideoSucceed(result: let result, nowPage: let nowPage):
-                    self.videoResultVC.updateResult(result: result, nowPage: nowPage)
+                case .fetchWebSucceed(let result, let nowPage):
+                    self?.webResultVC.updateResult(result: result, nowPage: nowPage)
+                case .fetchImageSucceed(let result, let nowPage):
+                    self?.imageResultVC.updateResult(result: result, nowPage: nowPage)
+                case .fetchVideoSucceed(let result, let nowPage):
+                    self?.videoResultVC.updateResult(result: result, nowPage: nowPage)
+                case .fetchSuggestionSucceed(let result):
+                    self?.suggestionVC.updateResult(result: result)
+                case .fetchRelatedRecordSucceed(let result):
+                    self?.suggestionVC.updateResult(result: result)
                 }
             }.store(in: &cancellables)
 
@@ -93,18 +98,23 @@ class SearchViewController: UIViewController {
             .sink { [weak self] (word, scope) in
                 switch scope {
                 case 0:
-                    print(word, scope)
                     self?.input.send(.webButtonTap(query: word))
                     self?.webResultVC.view.isHidden = false
                 case 1:
-                    print(word, scope)
                     self?.input.send(.imageButtonTap(query: word))
                     self?.imageResultVC.view.isHidden = false
                 default:
-                    print(word, scope)
                     self?.input.send(.videoButtonTap(query: word))
                     self?.videoResultVC.view.isHidden = false
                 }
+            }
+            .store(in: &cancellables)
+
+        temporarySearchWord
+            .debounce(for: 0.5, scheduler: RunLoop.main)
+            .sink { [weak self] word in
+                self?.input.send(.searchingGetRecord(query: word))
+                self?.input.send(.searchingGetSuggestion(query: word))
             }
             .store(in: &cancellables)
     }
@@ -219,10 +229,11 @@ extension SearchViewController: UISearchBarDelegate {
         webResultVC.view.isHidden = true
         imageResultVC.view.isHidden = true
         videoResultVC.view.isHidden = true
+        temporarySearchWord.send("")
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-//        searchBar.endEditing(true)
+        temporarySearchWord.send(searchText)
     }
 
     func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
