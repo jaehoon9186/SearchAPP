@@ -67,6 +67,22 @@ class APIService {
 
     }
 
+
+    func getFetchSuggestion(url: URL?) -> AnyPublisher<Suggestion, Error> {
+
+        let decoder = SuggestionXMLParser()
+
+        return URLSession.shared.dataTaskPublisher(for: url!)
+            .catch { error in
+                return Fail(error: APIError.transportError(error)).eraseToAnyPublisher()
+            }
+            .tryMap {
+                return try decoder.xmlDecode(data: $0.data)
+            }
+            .eraseToAnyPublisher()
+
+    }
+
     func fetchSuggestion(url: URL?, completion: @escaping (Result<Suggestion, APIError>) -> Void) {
         guard let url = url else {
             completion(Result.failure(APIError.invalidURL))
