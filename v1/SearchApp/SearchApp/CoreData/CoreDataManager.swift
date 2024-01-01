@@ -21,10 +21,13 @@ class CoreDataManager {
 
     // MARK: - Creat
     func saveRecord(word: String) {
-        let object = SearchRecord(context: context)
+        if let allRecords = readRecord() {
+            let contains = allRecords.filter { $0.word == word }
+            contains.forEach { deleteObject(object: $0) }
+        }
 
+        let object = SearchRecord(context: context)
         object.word = word
-        object.time = Date()
 
         do {
             try context.save()
@@ -39,7 +42,8 @@ class CoreDataManager {
 
         do {
             let result = try self.context.fetch(fetchRequest)
-            return result
+
+            return result.reversed()
         } catch {
             return nil
         }
