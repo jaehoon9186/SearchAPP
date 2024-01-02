@@ -88,7 +88,7 @@ class VideoResultViewController: UIViewController {
         button = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
 
         button?.onButtonTap = {
-            self.delegate?.moreVideoResult(nextPage: self.nextPage!)
+            self.delegate?.moreVideoResult(nextPage: self.nextPage ?? 1)
         }
         self.tableView.tableFooterView = button
 
