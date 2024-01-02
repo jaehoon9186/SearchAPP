@@ -20,24 +20,24 @@ class CoreDataManager {
     private init() {}
 
     // MARK: - Creat
-    func saveRecord(word: String) {
-        if let allRecords = readRecord() {
-            let contains = allRecords.filter { $0.word == word }
-            contains.forEach { deleteObject(object: $0) }
-        }
-
-        let object = SearchRecord(context: context)
-        object.word = word
-
+    func saveRecord(word: String) throws {
         do {
+            if let allRecords = try readRecord() {
+                let contains = allRecords.filter { $0.word == word }
+                contains.forEach { try? deleteObject(object: $0) }
+            }
+
+            let object = SearchRecord(context: context)
+            object.word = word
+
             try context.save()
         } catch {
-            print(error.localizedDescription)
+            throw APIError.coreDataError
         }
     }
 
     // MARK: - Read
-    func readRecord() -> [SearchRecord]? {
+    func readRecord() throws -> [SearchRecord]? {
         let fetchRequest = SearchRecord.fetchRequest()
 
         do {
@@ -45,30 +45,30 @@ class CoreDataManager {
 
             return result.reversed()
         } catch {
-            return nil
+            throw APIError.coreDataError
         }
     }
 
     // MARK: - Delete All
-    func deleteAll() {
+    func deleteAll() throws {
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "SearchRecord")
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
 
         do {
             try self.context.execute(deleteRequest)
         } catch {
-            print(error.localizedDescription)
+            throw APIError.coreDataError
         }
     }
 
     // MARK: - Delete Object
-    func deleteObject(object: SearchRecord) {
+    func deleteObject(object: SearchRecord) throws {
         self.context.delete(object)
 
         do {
             try self.context.save()
         } catch {
-            print(error.localizedDescription)
+            throw APIError.coreDataError
         }
     }
 

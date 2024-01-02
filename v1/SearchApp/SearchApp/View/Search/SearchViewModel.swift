@@ -19,7 +19,7 @@ class SearchViewModel {
     }
 
     enum Output {
-        case fetchFail(error: APIError)
+        case fetchFail(error: Error)
         case fetchWebSucceed(result: WebSearch, nowPage: Int)
         case fetchImageSucceed(result: ImageSearch, nowPage: Int)
         case fetchVideoSucceed(result: VideoSearch, nowPage: Int)
@@ -37,19 +37,21 @@ class SearchViewModel {
 
     func transform(input: AnyPublisher<Input, Never>) -> AnyPublisher<Output, Never> {
 
-        input.sink { [weak self] event in
+        input
+            .sink { [weak self] event in
             switch event {
             case .webButtonTap(let query, let page):
-                self?.handleGetSearchResult(type: WebSearch.self, url: EndPoint.web(query: query, page: page).url, nowPage: page)
-                fallthrough
-            case .imageButtonTap(let query, let page):
-                self?.handleGetSearchResult(type: ImageSearch.self, url: EndPoint.image(query: query, page: page).url, nowPage: page)
-                fallthrough
-            case .videoButtonTap(let query, let page):
-                self?.handleGetSearchResult(type: VideoSearch.self, url: EndPoint.video(query: query, page: page).url, nowPage: page)
-                fallthrough
-            case .webButtonTap(let query, _), .imageButtonTap(let query, _), .videoButtonTap(let query, _):
                 self?.saveRecordWord(query: query)
+                self?.handleGetSearchResult(type: WebSearch.self, url: EndPoint.web(query: query, page: page).url, nowPage: page)
+
+            case .imageButtonTap(let query, let page):
+                self?.saveRecordWord(query: query)
+                self?.handleGetSearchResult(type: ImageSearch.self, url: EndPoint.image(query: query, page: page).url, nowPage: page)
+
+            case .videoButtonTap(let query, let page):
+                self?.saveRecordWord(query: query)
+                self?.handleGetSearchResult(type: VideoSearch.self, url: EndPoint.video(query: query, page: page).url, nowPage: page)
+
             case .searchingGetRecord(let query):
                 self?.handleGetRecordWords(query: query)
             case .searchingGetSuggestion(let query):
@@ -63,7 +65,7 @@ class SearchViewModel {
         return output.eraseToAnyPublisher()
     }
 
-    func handleGetSearchResult<T: Decodable>(type: T.Type, url: URL?, nowPage: Int) {
+    private func handleGetSearchResult<T: Decodable>(type: T.Type, url: URL?, nowPage: Int) {
 
         guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "API_KEY") as? String else { return }
 
@@ -74,9 +76,8 @@ class SearchViewModel {
         apiService.getFetchResult(type: type, request: request).sink { completion in
             switch completion {
             case .failure(let error):
-                print(error.localizedDescription, "에러 .. 떳나")
-            case .finished:
-                print("끝 성공했나. ")
+                print(error.description)
+            case .finished: break
             }
         } receiveValue: { [weak self] result in
             switch type {
@@ -90,23 +91,9 @@ class SearchViewModel {
                 print("반환 타입이 옳바르지 않습니다. ")
             }
         }.store(in: &cancellables)
-
     }
 
-    func handleGetRecordWords(query: String) {
-        let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let count = str.isEmpty ? 10 : 3
-
-        CoreDataManager.shard.readRecord().publisher.sink { [weak self] records in
-
-            var result = records.filter { $0.word!.hasPrefix(str) }
-            result = zip(result, (0..<count)).map { $0.0 }
-
-            self?.output.send(.fetchRelatedRecordSucceed(result: result))
-        }.store(in: &cancellables)
-    }
-    
-    func handleGetSuggestion(query: String) {
+    private func handleGetSuggestion(query: String) {
         let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if str.isEmpty {
             self.output.send(.fetchSuggestionSucceed(result: Suggestion(suggestedWords: [])))
@@ -116,28 +103,51 @@ class SearchViewModel {
         let urlStr = "https://suggestqueries.google.com/complete/search?output=toolbar&hl=kor&q=\(str)"
         let url = URL(string: urlStr.encodeURL()!)
 
-        apiService.getFetchSuggestion(url: url).sink { completion in
+        apiService.getFetchSuggestion(url: url).sink { [weak self] completion in
             switch completion {
             case .failure(let error):
-                print("에러떳너")
-            case .finished:
-                print("끝")
+                self?.output.send(.fetchFail(error: error))
+            case .finished: break
             }
         } receiveValue: { [weak self] suggestion in
             self?.output.send(.fetchSuggestionSucceed(result: suggestion))
         }.store(in: &cancellables)
     }
 
-    func saveRecordWord(query: String) {
+    private func handleGetRecordWords(query: String) {
+        let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let count = str.isEmpty ? 10 : 3
+
+        do {
+            try CoreDataManager.shard.readRecord().publisher
+                .sink { [weak self] records in
+                    var result = records.filter { $0.word!.hasPrefix(str) }
+                    result = zip(result, (0..<count)).map { $0.0 }
+                    self?.output.send(.fetchRelatedRecordSucceed(result: result))
+                }.store(in: &cancellables)
+        } catch {
+            output.send(.fetchFail(error: error))
+        }
+    }
+
+    private func saveRecordWord(query: String) {
         let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if str.isEmpty {
             return
         }
 
-        CoreDataManager.shard.saveRecord(word: str)
+        do {
+            try CoreDataManager.shard.saveRecord(word: str)
+        } catch {
+            output.send(.fetchFail(error: error))
+        }
     }
 
-    func removeAllRecordWords() {
-        CoreDataManager.shard.deleteAll()
+    private func removeAllRecordWords() {
+        do {
+            try CoreDataManager.shard.deleteAll()
+        } catch {
+            output.send(.fetchFail(error: error))
+        }
     }
 }

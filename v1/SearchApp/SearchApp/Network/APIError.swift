@@ -16,6 +16,7 @@ enum APIError: Error, CustomStringConvertible {
     case badResponse(stateCode: Int)
     case missingData
     case parsingError
+    case coreDataError
     case unknown
 
     var localizedDescription: String {
@@ -27,6 +28,8 @@ enum APIError: Error, CustomStringConvertible {
             return "죄송합니다. 문제가 발생했습니다."
         case .missingData:
             return "요청하신 결과가 없습니다."
+        case .coreDataError:
+            return "코어데이터 에러"
         case .unknown:
             return "관리자에게 문의하세요"
         }
@@ -48,6 +51,8 @@ enum APIError: Error, CustomStringConvertible {
             return "ERROR: 데이터 없음"
         case .parsingError:
             return "ERROR: data parsing 실패"
+        case .coreDataError:
+            return "ERROR: CoreData Error"
         case .unknown:
             return "ERROR: 기타 에러"
         }
