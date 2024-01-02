@@ -17,7 +17,7 @@ class SearchViewController: UIViewController {
     private let input: PassthroughSubject<SearchViewModel.Input, Never> = .init()
     private var cancellables = Set<AnyCancellable>()
 
-    private var searchWord: CurrentValueSubject<String, Never> = .init(" ")
+    private var searchWord: CurrentValueSubject<String, Never> = .init("")
     private var searchScopeNum: CurrentValueSubject<Int, Never> = .init(0)
     private var temporarySearchWord: PassthroughSubject<String, Never> = .init()
 
@@ -67,7 +67,6 @@ class SearchViewController: UIViewController {
         configureUI()
         configureChildVC()
     }
-
     // MARK: - Actions
 
     // MARK: - Helpers
@@ -78,7 +77,7 @@ class SearchViewController: UIViewController {
             .sink { [weak self] event in
                 switch event {
                 case .fetchFail(let error):
-                    print(error.description)
+                    print(error)
                 case .fetchWebSucceed(let result, let nowPage):
                     self?.webResultVC.updateResult(result: result, nowPage: nowPage)
                 case .fetchImageSucceed(let result, let nowPage):
@@ -94,18 +93,18 @@ class SearchViewController: UIViewController {
 
         // 검색하거나 탭(scopeBar) 이동시 == 처음 검색하는 경우.
         searchWord.combineLatest(searchScopeNum)
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] (word, scope) in
+                if word.isEmpty {
+                    return
+                }
+
                 switch scope {
                 case 0:
                     self?.input.send(.webButtonTap(query: word))
-                    self?.webResultVC.view.isHidden = false
                 case 1:
                     self?.input.send(.imageButtonTap(query: word))
-                    self?.imageResultVC.view.isHidden = false
                 default:
                     self?.input.send(.videoButtonTap(query: word))
-                    self?.videoResultVC.view.isHidden = false
                 }
             }
             .store(in: &cancellables)
@@ -251,10 +250,13 @@ extension SearchViewController: UISearchBarDelegate {
 
         if selectedScope == 0 {
             searchScopeNum.send(0)
+            self.webResultVC.view.isHidden = false
         } else if selectedScope == 1 {
             searchScopeNum.send(1)
+            self.imageResultVC.view.isHidden = false
         } else {
             searchScopeNum.send(2)
+            self.videoResultVC.view.isHidden = false
         }
     }
 }
