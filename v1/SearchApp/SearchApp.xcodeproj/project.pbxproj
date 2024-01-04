@@ -38,6 +38,7 @@
 		0970CA402B2C709800EBB434 /* ImageResultViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0970CA3F2B2C709800EBB434 /* ImageResultViewController.swift */; };
 		0970CA422B2C70A400EBB434 /* VideoResultViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0970CA412B2C70A400EBB434 /* VideoResultViewController.swift */; };
 		0970CA4C2B319B1E00EBB434 /* MoreButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0970CA4B2B319B1E00EBB434 /* MoreButtonView.swift */; };
+		0970CA502B44643100EBB434 /* ErrorViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0970CA4F2B44643100EBB434 /* ErrorViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -94,6 +95,7 @@
 		0970CA3F2B2C709800EBB434 /* ImageResultViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageResultViewController.swift; sourceTree = "<group>"; };
 		0970CA412B2C70A400EBB434 /* VideoResultViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoResultViewController.swift; sourceTree = "<group>"; };
 		0970CA4B2B319B1E00EBB434 /* MoreButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreButtonView.swift; sourceTree = "<group>"; };
+		0970CA4F2B44643100EBB434 /* ErrorViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -218,6 +220,7 @@
 				0954BAF52B1F0FDF008B36AB /* MainCoordinator.swift */,
 				0970CA2C2B2304C500EBB434 /* Search */,
 				0970CA4D2B3D91D900EBB434 /* Result */,
+				0970CA4E2B4463EC00EBB434 /* Error */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -273,6 +276,14 @@
 				0970CA3C2B2C706500EBB434 /* VideoResult */,
 			);
 			path = Result;
+			sourceTree = "<group>";
+		};
+		0970CA4E2B4463EC00EBB434 /* Error */ = {
+			isa = PBXGroup;
+			children = (
+				0970CA4F2B44643100EBB434 /* ErrorViewController.swift */,
+			);
+			path = Error;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -412,6 +423,7 @@
 				0954BAEC2B1DDB8D008B36AB /* SuggestionXMLParser.swift in Sources */,
 				0970CA402B2C709800EBB434 /* ImageResultViewController.swift in Sources */,
 				0954BAE82B1DC5CA008B36AB /* ImageSearch.swift in Sources */,
+				0970CA502B44643100EBB434 /* ErrorViewController.swift in Sources */,
 				0970CA3E2B2C708300EBB434 /* SuggestionViewController.swift in Sources */,
 				0954BAF32B1F0F99008B36AB /* ApplicationCoordinator.swift in Sources */,
 				0954BADF2B1DC2A8008B36AB /* Extension.swift in Sources */,
