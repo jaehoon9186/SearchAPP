@@ -77,7 +77,7 @@ class SearchViewController: UIViewController {
             .sink { [weak self] event in
                 switch event {
                 case .fetchFail(let error):
-                    print(error)
+                    self?.coordinator?.pushErrorView(error: error)
                 case .fetchWebSucceed(let result, let nowPage):
                     self?.webResultVC.updateResult(result: result, nowPage: nowPage)
                 case .fetchImageSucceed(let result, let nowPage):

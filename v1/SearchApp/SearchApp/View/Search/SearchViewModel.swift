@@ -73,10 +73,11 @@ class SearchViewModel {
         request.httpMethod = "GET"
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
 
-        apiService.getFetchResult(type: type, request: request).sink { completion in
+        apiService.getFetchResult(type: type, request: request)
+            .sink { [weak self] completion in
             switch completion {
             case .failure(let error):
-                print(error.description)
+                self?.output.send(Output.fetchFail(error: error))
             case .finished: break
             }
         } receiveValue: { [weak self] result in
