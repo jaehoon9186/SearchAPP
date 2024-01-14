@@ -9,8 +9,8 @@ import Foundation
 
 // MARK: - ImageSearch
 struct ImageSearch: Codable {
-    let meta: Meta?
-    let imageResults: [ImageResult]?
+    let meta: Meta
+    let imageResults: [ImageResult]
 
     enum CodingKeys: String, CodingKey {
         case meta

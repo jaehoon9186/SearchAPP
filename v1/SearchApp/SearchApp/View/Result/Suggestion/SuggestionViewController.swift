@@ -7,16 +7,9 @@
 
 import UIKit
 
-protocol SuggestionViewControllerDelegate {
-    func deleteRecord(record: SearchRecord)
-    func updateSearchBar(word: String)
-}
-
 class SuggestionViewController: UIViewController {
 
     // MARK: - Properties
-
-    var delegate: SuggestionViewControllerDelegate?
 
     private var records: [SearchRecord] = []
     private var suggestions: [String] = []
@@ -24,8 +17,8 @@ class SuggestionViewController: UIViewController {
     private let tableView: UITableView = {
         let tableView = UITableView()
 
-        tableView.register(RecordTableViewCell.self, forCellReuseIdentifier: "recordCell")
-        tableView.register(SuggestionTableViewCell.self, forCellReuseIdentifier: "suggestionCell")
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell1")
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell2")
         tableView.translatesAutoresizingMaskIntoConstraints = false
         return tableView
     }()
@@ -38,7 +31,6 @@ class SuggestionViewController: UIViewController {
 
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.keyboardDismissMode = .onDrag
 
         configureUI()
     }
@@ -76,14 +68,6 @@ extension SuggestionViewController: UITableViewDelegate, UITableViewDataSource {
         2
     }
 
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        if indexPath.section == 0 {
-            self.delegate?.updateSearchBar(word: records[indexPath.row].word!)
-        } else {
-            self.delegate?.updateSearchBar(word: suggestions[indexPath.row])
-        }
-    }
-
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if section == 0 {
             return records.count
@@ -95,17 +79,14 @@ extension SuggestionViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         if indexPath.section == 0 {
-            let cell = tableView.dequeueReusableCell(withIdentifier: "recordCell", for: indexPath) as! RecordTableViewCell
-            cell.onTapDeleteButton = { [weak self] in
-                if let record = self?.records[indexPath.row] {
-                    self?.delegate?.deleteRecord(record: record)
-                }
-            }
-            cell.word.text = records[indexPath.row].word!
+            let cell = tableView.dequeueReusableCell(withIdentifier: "Cell1", for: indexPath)
+            cell.textLabel?.text = records[indexPath.row].word!
+            cell.backgroundColor = .blue
             return cell
         } else {
-            let cell = tableView.dequeueReusableCell(withIdentifier: "suggestionCell", for: indexPath) as! SuggestionTableViewCell
-            cell.word.text = suggestions[indexPath.row]
+            let cell = tableView.dequeueReusableCell(withIdentifier: "Cell2", for: indexPath)
+            cell.textLabel?.text = suggestions[indexPath.row]
+            cell.backgroundColor = .systemPink
             return cell
         }
     }

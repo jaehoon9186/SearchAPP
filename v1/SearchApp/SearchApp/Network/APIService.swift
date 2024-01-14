@@ -7,18 +7,8 @@
 
 import Foundation
 import Combine
-import UIKit
 
 class APIService {
-
-    func getFetchImage(url: URL) -> AnyPublisher<UIImage?, APIError> {
-        return URLSession.shared.dataTaskPublisher(for: url)
-            .catch { error in
-                Fail(error: APIError.transportError(error)).eraseToAnyPublisher()
-            }
-            .map { UIImage(data: $0.data) }
-            .eraseToAnyPublisher()
-    }
 
     func getFetchResult<T: Decodable>(type: T.Type, request: URLRequest?) -> AnyPublisher<T, APIError> {
 
@@ -150,4 +140,116 @@ class APIService {
         task.resume()
     }
 
+    func fetchSearchWebResult(request: URLRequest?, completion: @escaping (Result<WebSearch, APIError>) -> Void) {
+        guard let request = request else {
+            let error = APIError.invalidRequest
+            completion(Result.failure(error))
+            return
+        }
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+
+            if let error = error {
+                completion(Result.failure(APIError.transportError(error)))
+            }
+
+            if let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) == false {
+                completion(Result.failure(APIError.badResponse(stateCode: response.statusCode)))
+            }
+
+            if let data = data {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.sssZ"
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .formatted(formatter)
+
+                do {
+                    let result = try decoder.decode(WebSearch.self, from: data)
+                    completion(Result.success(result))
+                } catch {
+                    completion(Result.failure(APIError.parsingError))
+                }
+
+            }
+
+        }
+
+        task.resume()
+
+    }
+
+    func fetchSearchVideoResult(request: URLRequest?, completion: @escaping (Result<VideoSearch, APIError>) -> Void) {
+        guard let request = request else {
+            let error = APIError.invalidRequest
+            completion(Result.failure(error))
+            return
+        }
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+
+            if let error = error {
+                completion(Result.failure(APIError.transportError(error)))
+            }
+
+            if let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) == false {
+                completion(Result.failure(APIError.badResponse(stateCode: response.statusCode)))
+            }
+
+            if let data = data {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.sssZ"
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .formatted(formatter)
+
+                do {
+                    let result = try decoder.decode(VideoSearch.self, from: data)
+                    completion(Result.success(result))
+                } catch {
+                    completion(Result.failure(APIError.parsingError))
+                }
+
+            }
+
+        }
+
+        task.resume()
+
+    }
+
+    func fetchSearchImageResult(request: URLRequest?, completion: @escaping (Result<ImageSearch, APIError>) -> Void) {
+        guard let request = request else {
+            let error = APIError.invalidRequest
+            completion(Result.failure(error))
+            return
+        }
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+
+            if let error = error {
+                completion(Result.failure(APIError.transportError(error)))
+            }
+
+            if let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode) == false {
+                completion(Result.failure(APIError.badResponse(stateCode: response.statusCode)))
+            }
+
+            if let data = data {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.sssZ"
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .formatted(formatter)
+
+                do {
+                    let result = try decoder.decode(ImageSearch.self, from: data)
+                    completion(Result.success(result))
+                } catch {
+                    completion(Result.failure(APIError.parsingError))
+                }
+
+            }
+
+        }
+
+        task.resume()
+    }
 }

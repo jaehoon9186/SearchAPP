@@ -9,8 +9,8 @@ import Foundation
 
 // MARK: - WebSearch
 struct WebSearch: Codable {
-    let meta: Meta?
-    let webResults: [WebResult]?
+    let meta: Meta
+    let webResults: [WebResult]
 
     enum CodingKeys: String, CodingKey {
         case meta

@@ -19,7 +19,7 @@ class SearchViewController: UIViewController {
 
     private var searchWord: CurrentValueSubject<String, Never> = .init("")
     private var searchScopeNum: CurrentValueSubject<Int, Never> = .init(0)
-    private var temporarySearchWord: CurrentValueSubject<String, Never> = .init("")
+    private var temporarySearchWord: PassthroughSubject<String, Never> = .init()
 
     private lazy var searchBar: UISearchBar = {
         let search = UISearchBar()
@@ -58,12 +58,6 @@ class SearchViewController: UIViewController {
         return vc
     }()
 
-    private let searchHomeVC: SearchHomeViewController = {
-        let vc = SearchHomeViewController()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        return vc
-    }()
-
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -84,6 +78,12 @@ class SearchViewController: UIViewController {
                 switch event {
                 case .fetchFail(let error):
                     self?.coordinator?.pushErrorView(error: error)
+                case .fetchWebSucceed(let result, let nowPage):
+                    self?.webResultVC.updateResult(result: result, nowPage: nowPage)
+                case .fetchImageSucceed(let result, let nowPage):
+                    self?.imageResultVC.updateResult(result: result, nowPage: nowPage)
+                case .fetchVideoSucceed(let result, let nowPage):
+                    self?.videoResultVC.updateResult(result: result, nowPage: nowPage)
                 case .fetchSuggestionSucceed(let result):
                     self?.suggestionVC.updateResult(result: result)
                 case .fetchRelatedRecordSucceed(let result):
@@ -94,30 +94,17 @@ class SearchViewController: UIViewController {
         // 검색하거나 탭(scopeBar) 이동시 == 처음 검색하는 경우.
         searchWord.combineLatest(searchScopeNum)
             .sink { [weak self] (word, scope) in
-
-                self?.suggestionVC.view.isHidden = true
-                self?.webResultVC.view.isHidden = true
-                self?.imageResultVC.view.isHidden = true
-                self?.videoResultVC.view.isHidden = true
-                self?.searchHomeVC.view.isHidden = true
-
-                if word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    self?.searchHomeVC.view.isHidden = false
+                if word.isEmpty {
                     return
                 }
 
-                self?.input.send(.searchTap(word: word))
-
                 switch scope {
                 case 0:
-                    self?.webResultVC.sendSearchWord(word: word)
-                    self?.webResultVC.view.isHidden = false
+                    self?.input.send(.webButtonTap(query: word))
                 case 1:
-                    self?.imageResultVC.sendSearchWord(word: word)
-                    self?.imageResultVC.view.isHidden = false
+                    self?.input.send(.imageButtonTap(query: word))
                 default:
-                    self?.videoResultVC.sendSearchWord(word: word)
-                    self?.videoResultVC.view.isHidden = false
+                    self?.input.send(.videoButtonTap(query: word))
                 }
             }
             .store(in: &cancellables)
@@ -133,7 +120,6 @@ class SearchViewController: UIViewController {
 
     private func configureDelegate() {
         searchBar.delegate = self
-        suggestionVC.delegate = self
         webResultVC.delegate = self
         imageResultVC.delegate = self
         videoResultVC.delegate = self
@@ -147,19 +133,16 @@ class SearchViewController: UIViewController {
         addChild(webResultVC)
         addChild(imageResultVC)
         addChild(videoResultVC)
-        addChild(searchHomeVC)
 
         view.addSubview(suggestionVC.view)
         view.addSubview(webResultVC.view)
         view.addSubview(imageResultVC.view)
         view.addSubview(videoResultVC.view)
-        view.addSubview(searchHomeVC.view)
 
         suggestionVC.didMove(toParent: self)
         webResultVC.didMove(toParent: self)
         imageResultVC.didMove(toParent: self)
         videoResultVC.didMove(toParent: self)
-        searchHomeVC.didMove(toParent: self)
 
         NSLayoutConstraint.activate([
             suggestionVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
@@ -180,18 +163,13 @@ class SearchViewController: UIViewController {
             videoResultVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
             videoResultVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
             videoResultVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            videoResultVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
-
-            searchHomeVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            searchHomeVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            searchHomeVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            searchHomeVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+            videoResultVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
         ])
     }
 
     private func configureUI() {
         self.navigationItem.title = "SEARCH"
-        view.backgroundColor = .white
+        view.backgroundColor = .cyan
 
         let safeArea = view.safeAreaLayoutGuide
 
@@ -206,29 +184,25 @@ class SearchViewController: UIViewController {
         ])
     }
 }
-extension SearchViewController: SuggestionViewControllerDelegate {
-    func deleteRecord(record: SearchRecord) {
-        input.send(.recordRemoveButtonTap(object: record))
-        input.send(.searchingGetRecord(query: temporarySearchWord.value))
-    }
-
-    func updateSearchBar(word: String) {
-        searchBar.text = word
-        temporarySearchWord.send(word)
-    }
-}
 
 // 각 child VC 에서 버튼으로 추가정보를 원하는 경우.
-extension SearchViewController: WebResultViewControllerDelegate, ImageResultViewControllerDelegate, VideoResultViewControllerDelegate {
-    func goDetailView(url: String) {
-        coordinator?.pushDetailView(url: url)
-    }
-
-    func goErrorView(error: Error) {
-        coordinator?.pushErrorView(error: error)
+extension SearchViewController: WebResultViewControllerDelegate {
+    func moreWebResult(nextPage: Int) {
+        input.send(.webButtonTap(query: self.searchWord.value, page: nextPage))
     }
 }
 
+extension SearchViewController: ImageResultViewControllerDelegate {
+    func moreImageResult(nextPage: Int) {
+        input.send(.imageButtonTap(query: self.searchWord.value, page: nextPage))
+    }
+}
+
+extension SearchViewController: VideoResultViewControllerDelegate {
+    func moreVideoResult(nextPage: Int) {
+        input.send(.videoButtonTap(query: self.searchWord.value, page: nextPage))
+    }
+}
 
 extension SearchViewController: UISearchBarDelegate {
 
@@ -246,7 +220,7 @@ extension SearchViewController: UISearchBarDelegate {
 //        dismissKeyboard()
         searchWord.send(searchBar.text ?? "")
         searchBar.endEditing(true)
-//        webResultVC.view.isHidden = false
+        webResultVC.view.isHidden = false
     }
 
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
@@ -254,8 +228,7 @@ extension SearchViewController: UISearchBarDelegate {
         webResultVC.view.isHidden = true
         imageResultVC.view.isHidden = true
         videoResultVC.view.isHidden = true
-        searchHomeVC.view.isHidden = true
-        temporarySearchWord.send(searchBar.text ?? "")
+        temporarySearchWord.send("")
     }
 
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
@@ -270,18 +243,20 @@ extension SearchViewController: UISearchBarDelegate {
 
         dismissKeyboard()
 
-//        suggestionVC.view.isHidden = true
-//        webResultVC.view.isHidden = true
-//        imageResultVC.view.isHidden = true
-//        videoResultVC.view.isHidden = true
-//        searchHomeVC.view.isHidden = true
+        suggestionVC.view.isHidden = true
+        webResultVC.view.isHidden = true
+        imageResultVC.view.isHidden = true
+        videoResultVC.view.isHidden = true
 
         if selectedScope == 0 {
             searchScopeNum.send(0)
+            self.webResultVC.view.isHidden = false
         } else if selectedScope == 1 {
             searchScopeNum.send(1)
+            self.imageResultVC.view.isHidden = false
         } else {
             searchScopeNum.send(2)
+            self.videoResultVC.view.isHidden = false
         }
     }
 }
