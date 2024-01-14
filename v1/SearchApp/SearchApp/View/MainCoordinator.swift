@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import SafariServices
 
 class MainCoordinator: Coordinator {
     var navigationController: UINavigationController?
@@ -24,7 +25,11 @@ class MainCoordinator: Coordinator {
         self.navigationController?.pushViewController(vc, animated: true)
     }
 
-    // toDetailView
+    func pushDetailView(url: String) {
+        let vc = DetailSafariViewController()
+        vc.url = url
+                navigationController?.pushViewController(vc, animated: true)
+    }
     
 
     func start() {
