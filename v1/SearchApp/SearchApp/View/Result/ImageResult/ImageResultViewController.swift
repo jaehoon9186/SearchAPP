@@ -9,12 +9,16 @@ import UIKit
 import Combine
 
 protocol ImageResultViewControllerDelegate {
-    func moreImageResult(nextPage: Int)
+    func goErrorView(error: Error)
+    func goDetailView(url: String)
 }
 
 class ImageResultViewController: UIViewController {
     // MARK: - Properties
     var delegate: ImageResultViewControllerDelegate?
+
+    private let viewModel = ImageResultViewModel()
+    private let input: PassthroughSubject<ImageResultViewModel.Input, Never> = .init()
 
     private let resultSubject: PassthroughSubject<ImageSearch, Never> = .init()
     private var cancellable = Set<AnyCancellable>()
@@ -23,15 +27,26 @@ class ImageResultViewController: UIViewController {
 
     private var list: [ImageResult] = []
     private var nextPage: Int?
+    private var searchWord: String?
 
-    private var button: MoreButtonView?
 
-    private let tableView: UITableView = {
-        let tableView = UITableView()
-        tableView.backgroundView?.backgroundColor = .white
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell")
-        return tableView
+    private lazy var collectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .vertical
+        layout.minimumLineSpacing = 1
+        layout.minimumInteritemSpacing = 1
+        layout.sectionInset = UIEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)
+        layout.itemSize = CGSize(width: (view.frame.width / 2) - 2, height: (view.frame.width / 2) - 2)
+
+        let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collection.register(CollectionViewCell.self, forCellWithReuseIdentifier: CollectionViewCell.identifier)
+
+        collection.register(CollectionFooterView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionFooter, withReuseIdentifier: CollectionFooterView.identifier)
+
+        collection.contentInsetAdjustmentBehavior = .always
+        collection.keyboardDismissMode = .onDrag
+        collection.translatesAutoresizingMaskIntoConstraints = false
+        return collection
     }()
 
     // MARK: - Lifecycle
@@ -40,23 +55,29 @@ class ImageResultViewController: UIViewController {
         
         self.view.backgroundColor = .purple
 
-        tableView.delegate = self
-        tableView.dataSource = self
-        tableView.keyboardDismissMode = .onDrag
-
         bind()
         configureUI()
+        configureDelegate()
     }
 
     // MARK: - Actions
 
 
     // MARK: - Helpers
+    private func configureDelegate() {
+        collectionView.dataSource = self
+        collectionView.delegate = self
+    }
 
-    // from parent View
-    func updateResult(result: ImageSearch, nowPage: Int) {
+    func sendSearchWord(word: String) {
+        searchWord = word
+        input.send(.ImageButtonTap(query: searchWord ?? ""))
+    }
+
+    private func updateResult(result: ImageSearch, nowPage: Int) {
         if nowPage == 1 {
             list = []
+            collectionView.reloadData()
         }
         nextPage = nowPage + 1
         resultSubject.send(result)
@@ -64,59 +85,108 @@ class ImageResultViewController: UIViewController {
 
     private func bind() {
 
+        let output = viewModel.transform(input: input.eraseToAnyPublisher())
+        output
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] output in
+                switch output {
+                case .fetchFail(error: let error):
+                    self?.delegate?.goErrorView(error: error)
+                case .fetchImageSucceed(result: let result, nowPage: let nowPage):
+                    self?.updateResult(result: result, nowPage: nowPage)
+                }
+            }
+            .store(in: &cancellable)
+        
         resultSubject
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] ImageSearch in
-                self?.isEnd.send(ImageSearch.meta.isEnd)
-                self?.list += ImageSearch.imageResults
-                self?.tableView.reloadData()
+            .sink { [weak self] imageSearch in
+                self?.isEnd.send(imageSearch.meta!.isEnd)
+                self?.collectionViewUpdate(items: imageSearch)
             }
             .store(in: &cancellable)
+    }
 
+    private func collectionViewUpdate(items: ImageSearch) {
+        var index = self.list.count
 
-        isEnd
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isEnd in
-                self?.button?.button.isEnabled = !isEnd
-            }
-            .store(in: &cancellable)
+        if let results = items.imageResults {
+            results.forEach({
+                self.list.insert($0, at: index)
+                self.collectionView.insertItems(at: [IndexPath(item: index, section: 0)])
+                index += 1
+            })
+        }
     }
 
     private func configureUI() {
-
-        button = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
-
-        button?.onButtonTap = {
-            self.delegate?.moreImageResult(nextPage: self.nextPage ?? 1)
-        }
-        self.tableView.tableFooterView = button
-
-
-        self.view.addSubview(tableView)
+        view.addSubview(collectionView)
 
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
     }
-
 }
 
+extension ImageResultViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
-extension ImageResultViewController: UITableViewDelegate, UITableViewDataSource {
-
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return list.count
     }
 
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        list.count
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CustomCollectionViewCell", for: indexPath) as?  CollectionViewCell {
+            cell.pass.send(list[indexPath.row])
+
+            return cell
+        }
+        return UICollectionViewCell()
     }
 
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
-        cell.textLabel?.text = list[indexPath.row].displaySitename
-        return cell
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        self.delegate?.goDetailView(url: list[indexPath.row].docURL)
     }
+
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+
+        switch kind {
+        case UICollectionView.elementKindSectionFooter:
+            let footer = collectionView.dequeueReusableSupplementaryView(
+                ofKind: kind,
+                withReuseIdentifier: "CustomCollectionFooterView",
+                for: indexPath
+            ) as! CollectionFooterView
+
+            footer.buttonView = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
+
+            footer.buttonView?.onButtonTap = { [weak self] in
+                self?.input.send(.ImageButtonTap(query: self?.searchWord ?? "", page: self?.nextPage ?? 1))
+            }
+
+            isEnd
+                .receive(on: DispatchQueue.main)
+                .sink { isEnd in
+                    footer.buttonView?.button.isEnabled = !isEnd
+                }
+                .store(in: &cancellable)
+
+            return footer
+        default:
+            print("default")
+        }
+
+        return UICollectionViewCell()
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForFooterInSection section: Int) -> CGSize {
+        return CGSize(width: view.frame.size.width, height: 200)
+    }
+
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return 1
+    }
+
 }

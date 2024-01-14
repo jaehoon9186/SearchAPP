@@ -10,8 +10,8 @@ import Foundation
 
 // MARK: - VideoSearch
 struct VideoSearch: Codable {
-    let meta: Meta
-    let videoResults: [VideoResult]
+    let meta: Meta?
+    let videoResults: [VideoResult]?
 
     enum CodingKeys: String, CodingKey {
         case meta
