@@ -17,7 +17,6 @@ class MainCoordinator: Coordinator {
     }
 
     // toError
-
     func pushErrorView(error: Error) {
         let vc = ErrorViewController()
         vc.coordinator = self
