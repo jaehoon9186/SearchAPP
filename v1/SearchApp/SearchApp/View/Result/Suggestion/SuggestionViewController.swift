@@ -6,20 +6,23 @@
 //
 
 import UIKit
+import Combine
 
 protocol SuggestionViewControllerDelegate {
-    func deleteRecord(record: SearchRecord)
     func updateSearchBar(word: String)
+    func goErrorView(error: Error)
 }
 
 class SuggestionViewController: UIViewController {
 
     // MARK: - Properties
-
     var delegate: SuggestionViewControllerDelegate?
+    let viewModel: SuggestionViewModel = SuggestionViewModel() // needed DI
 
-    private var records: [SearchRecord] = []
-    private var suggestions: [String] = []
+    private var cancellable = Set<AnyCancellable>()
+    // input
+    private let removeRecordSubject: PassthroughSubject<SearchRecord, Never> = .init()
+    private let searchWordSubject: PassthroughSubject<String, Never> = .init()
 
     private let tableView: UITableView = {
         let tableView = UITableView()
@@ -34,28 +37,51 @@ class SuggestionViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        self.view.backgroundColor = .systemPink
-
         tableView.delegate = self
         tableView.dataSource = self
         tableView.keyboardDismissMode = .onDrag
 
+//        bind()
         configureUI()
+    }
+
+    // superview에서 유동적으로 자식클래스를 추가 제거 한다면 viewdidload로 옮겨도 ㄱㅊ을듯.
+    override func viewDidAppear(_ animated: Bool) {
+        bind()
     }
 
     // MARK: - Actions
 
     // MARK: - Helpers
-    func updateResult<T: Any>(result: T) {
-        if let updated = result as? [SearchRecord] {
-            records = updated
-        } else if let updated = result as? Suggestion {
-            suggestions = updated.suggestedWords
+    private func bind() {
+        let input = SuggestionViewModel.Input(
+            searchWord: searchWordSubject.eraseToAnyPublisher(),
+            recordRemoveButtonTap: removeRecordSubject.eraseToAnyPublisher())
+
+        let output = viewModel.transform(input: input)
+
+        output.fetchFail
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                self?.delegate?.goErrorView(error: error)
+            }.store(in: &cancellable)
+
+        output.updateUI
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.tableView.reloadData()
+            }.store(in: &cancellable)
+
+        if let parentView = parent as? SearchViewController {
+            parentView.temporarySearchWord
+                .debounce(for: 0.5, scheduler: RunLoop.main)
+                .sink { [weak self] searchBarWord in
+                    self?.searchWordSubject.send(searchBarWord)
+                }.store(in: &cancellable)
+        } else {
+            print("DEBUG: didn't find parent class")
         }
-
-        tableView.reloadData()
     }
-
 
     private func configureUI() {
 
@@ -78,17 +104,17 @@ extension SuggestionViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if indexPath.section == 0 {
-            self.delegate?.updateSearchBar(word: records[indexPath.row].word!)
+            self.delegate?.updateSearchBar(word: viewModel.records[indexPath.row].word!)
         } else {
-            self.delegate?.updateSearchBar(word: suggestions[indexPath.row])
+            self.delegate?.updateSearchBar(word: viewModel.suggestion.suggestedWords[indexPath.row])
         }
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if section == 0 {
-            return records.count
+            return viewModel.records.count
         } else {
-            return suggestions.count
+            return viewModel.suggestion.suggestedWords.count
         }
     }
 
@@ -97,15 +123,15 @@ extension SuggestionViewController: UITableViewDelegate, UITableViewDataSource {
         if indexPath.section == 0 {
             let cell = tableView.dequeueReusableCell(withIdentifier: "recordCell", for: indexPath) as! RecordTableViewCell
             cell.onTapDeleteButton = { [weak self] in
-                if let record = self?.records[indexPath.row] {
-                    self?.delegate?.deleteRecord(record: record)
+                if let record = self?.viewModel.records[indexPath.row] {
+                    self?.removeRecordSubject.send(record)
                 }
             }
-            cell.word.text = records[indexPath.row].word!
+            cell.word.text = viewModel.records[indexPath.row].word!
             return cell
         } else {
             let cell = tableView.dequeueReusableCell(withIdentifier: "suggestionCell", for: indexPath) as! SuggestionTableViewCell
-            cell.word.text = suggestions[indexPath.row]
+            cell.word.text = viewModel.suggestion.suggestedWords[indexPath.row]
             return cell
         }
     }
