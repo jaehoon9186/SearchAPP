@@ -67,8 +67,6 @@ class SuggestionViewModel: ViewModelType {
         let url = URL(string: urlStr.encodeURL()!)
 
 
-        print("suggestion ? \(str)")
-
         apiService.getFetchSuggestion(url: url).sink { [weak self] completion in
             switch completion {
             case .failure(let error):
@@ -78,7 +76,6 @@ class SuggestionViewModel: ViewModelType {
         } receiveValue: { [weak self] suggestion in
             self?.suggestion = suggestion
             completion()
-            print("in method  ",suggestion.suggestedWords)
         }.store(in: &cancellable)
     }
 
