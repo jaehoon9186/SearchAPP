@@ -21,22 +21,16 @@ class WebResultViewController: UIViewController {
     var delegate: WebResultViewControllerDelegate?
 
     private let viewModel = WebResultViewModel()
-    private let input: PassthroughSubject<WebResultViewModel.Input, Never> = .init()
 
-    private let resultSubject: PassthroughSubject<WebSearch, Never> = .init()
+    // input
+    let searchWebSubject: CurrentValueSubject<String, Never> = .init("")
+
     private var cancellable = Set<AnyCancellable>()
-
-    private var isEnd: CurrentValueSubject<Bool, Never> = .init(false)
-
-    private var list: [WebResult] = []
-    private var nextPage: Int?
-    private var searchWord: String?
 
     private var button: MoreButtonView?
 
     private let tableView: UITableView = {
         let tableView = UITableView()
-//        tableView.backgroundView?.backgroundColor = .white
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.register(WebTableViewCell.self, forCellReuseIdentifier: "webTableViewCell")
         return tableView
@@ -53,56 +47,42 @@ class WebResultViewController: UIViewController {
         tableView.dataSource = self
         tableView.keyboardDismissMode = .onDrag
 
-        bind()
+//        bind()
         configureUI()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        bind()
     }
 
     // MARK: - Actions
 
 
     // MARK: - Helpers
-    func sendSearchWord(word: String) {
-        searchWord = word
-        input.send(.webButtonTap(query: searchWord ?? ""))
-    }
-
-    private func updateResult(result: WebSearch, nowPage: Int) {
-        if nowPage == 1 {
-            list = []
-        }
-        nextPage = nowPage + 1
-        resultSubject.send(result)
-    }
 
     private func bind() {
-        let output = viewModel.transform(input: input.eraseToAnyPublisher())
-        output
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] output in
-                switch output {
+        let input = WebResultViewModel.Input(searchWeb: searchWebSubject.eraseToAnyPublisher())
 
-                case .fetchFail(error: let error):
-                    self?.delegate?.goErrorView(error: error)
-                case .fetchWebSucceed(result: let result, nowPage: let nowPage):
-                    self?.updateResult(result: result, nowPage: nowPage)
-                }
+        let output = viewModel.transform(input: input)
+
+        output.fetchFail
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                self?.delegate?.goErrorView(error: error)
             }
             .store(in: &cancellable)
 
-        resultSubject
+        output.moreButtonisEnd
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] webSearch in
-                self?.isEnd.send(webSearch.meta!.isEnd)
-                self?.list += webSearch.webResults!
+            .sink { [weak self] _ in
+                self?.button?.button.isEnabled = false
+            }
+            .store(in: &cancellable)
+
+        output.updateUI
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
                 self?.tableView.reloadData()
-            }
-            .store(in: &cancellable)
-
-
-        isEnd
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isEnd in
-                self?.button?.button.isEnabled = !isEnd
             }
             .store(in: &cancellable)
     }
@@ -112,7 +92,7 @@ class WebResultViewController: UIViewController {
         button = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
 
         button?.onButtonTap = { [weak self] in
-            self?.input.send(.webButtonTap(query: self?.searchWord ?? "", page: self?.nextPage ?? 1))
+            self?.searchWebSubject.send(self?.searchWebSubject.value ?? "")
         }
         self.tableView.tableFooterView = button
 
@@ -130,11 +110,11 @@ class WebResultViewController: UIViewController {
 extension WebResultViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        self.delegate?.goDetailView(url: list[indexPath.row].url)
+        self.delegate?.goDetailView(url: viewModel.webResultList[indexPath.row].url)
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        list.count
+        viewModel.webResultList.count
     }
 
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -144,9 +124,10 @@ extension WebResultViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         if let cell = tableView.dequeueReusableCell(withIdentifier: "webTableViewCell", for: indexPath) as? WebTableViewCell {
-            cell.title.text = list[indexPath.row].title.decodeHTML
-            cell.contents.text = list[indexPath.row].contents.decodeHTML
-            cell.date.text = list[indexPath.row].datetime.dateString
+            let result = viewModel.webResultList[indexPath.row]
+            cell.title.text = result.title.decodeHTML
+            cell.contents.text = result.contents.decodeHTML
+            cell.date.text = result.datetime.dateString
 
             return cell
         }

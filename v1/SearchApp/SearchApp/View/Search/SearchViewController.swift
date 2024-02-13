@@ -19,7 +19,7 @@ class SearchViewController: UIViewController {
 
     private var searchWord: CurrentValueSubject<String, Never> = .init("")
     private var searchScopeNum: CurrentValueSubject<Int, Never> = .init(0)
-    private var temporarySearchWord: CurrentValueSubject<String, Never> = .init("")
+    var temporarySearchWord: CurrentValueSubject<String, Never> = .init("")
 
     private lazy var searchBar: UISearchBar = {
         let search = UISearchBar()
@@ -33,6 +33,8 @@ class SearchViewController: UIViewController {
     // 1. 서치바 키보드 완료(return)버튼 액션
     // 2. 키보드 레이아웃 밖? 아웃사이드 버튼 액션
     // 3. scope bar button 액션, 그냥 버튼으로 만들어볼 것. (기존의 버튼 탭이 불가해서)
+
+//    var subVC: UIViewController!
 
     private let suggestionVC: SuggestionViewController = {
         let vc = SuggestionViewController()
@@ -84,10 +86,6 @@ class SearchViewController: UIViewController {
                 switch event {
                 case .fetchFail(let error):
                     self?.coordinator?.pushErrorView(error: error)
-                case .fetchSuggestionSucceed(let result):
-                    self?.suggestionVC.updateResult(result: result)
-                case .fetchRelatedRecordSucceed(let result):
-                    self?.suggestionVC.updateResult(result: result)
                 }
             }.store(in: &cancellables)
 
@@ -110,25 +108,21 @@ class SearchViewController: UIViewController {
 
                 switch scope {
                 case 0:
-                    self?.webResultVC.sendSearchWord(word: word)
+//                    self?.webResultVC.sendSearchWord(word: word)
+                    self?.webResultVC.searchWebSubject.send(word)
                     self?.webResultVC.view.isHidden = false
                 case 1:
-                    self?.imageResultVC.sendSearchWord(word: word)
+//                    self?.imageResultVC.sendSearchWord(word: word)
+                    self?.imageResultVC.searchImageSubject.send(word)
                     self?.imageResultVC.view.isHidden = false
                 default:
-                    self?.videoResultVC.sendSearchWord(word: word)
+//                    self?.videoResultVC.sendSearchWord(word: word)
+                    self?.videoResultVC.searchVideoSubject.send(word)
                     self?.videoResultVC.view.isHidden = false
                 }
             }
             .store(in: &cancellables)
 
-        temporarySearchWord
-            .debounce(for: 0.5, scheduler: RunLoop.main)
-            .sink { [weak self] word in
-                self?.input.send(.searchingGetRecord(query: word))
-                self?.input.send(.searchingGetSuggestion(query: word))
-            }
-            .store(in: &cancellables)
     }
 
     private func configureDelegate() {
@@ -207,14 +201,13 @@ class SearchViewController: UIViewController {
     }
 }
 extension SearchViewController: SuggestionViewControllerDelegate {
-    func deleteRecord(record: SearchRecord) {
-        input.send(.recordRemoveButtonTap(object: record))
-        input.send(.searchingGetRecord(query: temporarySearchWord.value))
-    }
-
     func updateSearchBar(word: String) {
         searchBar.text = word
         temporarySearchWord.send(word)
+    }
+
+    func goDetailView(error: Error) {
+        coordinator?.pushErrorView(error: error)
     }
 }
 
@@ -269,12 +262,6 @@ extension SearchViewController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, selectedScopeButtonIndexDidChange selectedScope: Int) {
 
         dismissKeyboard()
-
-//        suggestionVC.view.isHidden = true
-//        webResultVC.view.isHidden = true
-//        imageResultVC.view.isHidden = true
-//        videoResultVC.view.isHidden = true
-//        searchHomeVC.view.isHidden = true
 
         if selectedScope == 0 {
             searchScopeNum.send(0)
