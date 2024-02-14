@@ -17,7 +17,7 @@ class VideoResultViewController: UIViewController {
     // MARK: - Properties
     var delegate: VideoResultViewControllerDelegate?
 
-    private let viewModel = VideoResultViewModel()
+    var viewModel: VideoResultViewModel!
 
     // input
     let searchVideoSubject: CurrentValueSubject<String, Never> = .init("")

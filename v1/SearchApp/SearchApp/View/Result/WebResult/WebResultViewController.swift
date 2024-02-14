@@ -19,8 +19,7 @@ class WebResultViewController: UIViewController {
     // MARK: - Properties
 
     var delegate: WebResultViewControllerDelegate?
-
-    private let viewModel = WebResultViewModel()
+    var viewModel: WebResultViewModel!
 
     // input
     let searchWebSubject: CurrentValueSubject<String, Never> = .init("")

@@ -29,42 +29,27 @@ class SearchViewController: UIViewController {
         search.translatesAutoresizingMaskIntoConstraints = false
         return search
     }()
-    // 검색 관련
-    // 1. 서치바 키보드 완료(return)버튼 액션
-    // 2. 키보드 레이아웃 밖? 아웃사이드 버튼 액션
-    // 3. scope bar button 액션, 그냥 버튼으로 만들어볼 것. (기존의 버튼 탭이 불가해서)
 
-//    var subVC: UIViewController!
+    private lazy var safeArea = self.view.safeAreaLayoutGuide
 
-    private let suggestionVC: SuggestionViewController = {
-        let vc = SuggestionViewController()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        return vc
-    }()
+    var currentSubViewController: UIViewController? {
+        didSet {
+            removePreviousSubViewController()
+            if let newSubViewController = currentSubViewController {
+                addChild(newSubViewController)
+                view.addSubview(newSubViewController.view)
+                newSubViewController.didMove(toParent: self)
 
-    private let webResultVC: WebResultViewController = {
-        let vc = WebResultViewController()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        return vc
-    }()
-
-    private let imageResultVC: ImageResultViewController = {
-        let vc = ImageResultViewController()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        return vc
-    }()
-
-    private let videoResultVC: VideoResultViewController = {
-        let vc = VideoResultViewController()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        return vc
-    }()
-
-    private let searchHomeVC: SearchHomeViewController = {
-        let vc = SearchHomeViewController()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        return vc
-    }()
+                newSubViewController.view.translatesAutoresizingMaskIntoConstraints = false
+                NSLayoutConstraint.activate([
+                    newSubViewController.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
+                    newSubViewController.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
+                    newSubViewController.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
+                    newSubViewController.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
+                ])
+            }
+        }
+    }
 
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -73,11 +58,16 @@ class SearchViewController: UIViewController {
         bind()
         configureDelegate()
         configureUI()
-        configureChildVC()
     }
     // MARK: - Actions
 
     // MARK: - Helpers
+    private func removePreviousSubViewController() {
+        currentSubViewController?.willMove(toParent: nil)
+        currentSubViewController?.view.removeFromSuperview()
+        currentSubViewController?.removeFromParent()
+    }
+
     private func bind() {
         let output = viewModel.transform(input: input.eraseToAnyPublisher())
         output
@@ -93,33 +83,13 @@ class SearchViewController: UIViewController {
         searchWord.combineLatest(searchScopeNum)
             .sink { [weak self] (word, scope) in
 
-                self?.suggestionVC.view.isHidden = true
-                self?.webResultVC.view.isHidden = true
-                self?.imageResultVC.view.isHidden = true
-                self?.videoResultVC.view.isHidden = true
-                self?.searchHomeVC.view.isHidden = true
-
                 if word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    self?.searchHomeVC.view.isHidden = false
                     return
                 }
 
                 self?.input.send(.searchTap(word: word))
 
-                switch scope {
-                case 0:
-//                    self?.webResultVC.sendSearchWord(word: word)
-                    self?.webResultVC.searchWebSubject.send(word)
-                    self?.webResultVC.view.isHidden = false
-                case 1:
-//                    self?.imageResultVC.sendSearchWord(word: word)
-                    self?.imageResultVC.searchImageSubject.send(word)
-                    self?.imageResultVC.view.isHidden = false
-                default:
-//                    self?.videoResultVC.sendSearchWord(word: word)
-                    self?.videoResultVC.searchVideoSubject.send(word)
-                    self?.videoResultVC.view.isHidden = false
-                }
+                self?.coordinator?.showSubViewController(scopeIndex: scope, searchText: word, isEdting: false)
             }
             .store(in: &cancellables)
 
@@ -127,67 +97,11 @@ class SearchViewController: UIViewController {
 
     private func configureDelegate() {
         searchBar.delegate = self
-        suggestionVC.delegate = self
-        webResultVC.delegate = self
-        imageResultVC.delegate = self
-        videoResultVC.delegate = self
-
-    }
-
-    private func configureChildVC() {
-        let safeArea = view.safeAreaLayoutGuide
-
-        addChild(suggestionVC)
-        addChild(webResultVC)
-        addChild(imageResultVC)
-        addChild(videoResultVC)
-        addChild(searchHomeVC)
-
-        view.addSubview(suggestionVC.view)
-        view.addSubview(webResultVC.view)
-        view.addSubview(imageResultVC.view)
-        view.addSubview(videoResultVC.view)
-        view.addSubview(searchHomeVC.view)
-
-        suggestionVC.didMove(toParent: self)
-        webResultVC.didMove(toParent: self)
-        imageResultVC.didMove(toParent: self)
-        videoResultVC.didMove(toParent: self)
-        searchHomeVC.didMove(toParent: self)
-
-        NSLayoutConstraint.activate([
-            suggestionVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            suggestionVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            suggestionVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            suggestionVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
-
-            webResultVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            webResultVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            webResultVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            webResultVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
-
-            imageResultVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            imageResultVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            imageResultVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            imageResultVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
-
-            videoResultVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            videoResultVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            videoResultVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            videoResultVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor),
-
-            searchHomeVC.view.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 10),
-            searchHomeVC.view.leadingAnchor.constraint(equalTo: safeArea.leadingAnchor),
-            searchHomeVC.view.trailingAnchor.constraint(equalTo: safeArea.trailingAnchor),
-            searchHomeVC.view.bottomAnchor.constraint(equalTo: safeArea.bottomAnchor)
-        ])
     }
 
     private func configureUI() {
         self.navigationItem.title = "SEARCH"
         view.backgroundColor = .white
-
-        let safeArea = view.safeAreaLayoutGuide
 
         view.addSubview(searchBar)
 
@@ -225,7 +139,7 @@ extension SearchViewController: WebResultViewControllerDelegate, ImageResultView
 
 extension SearchViewController: UISearchBarDelegate {
 
-    // outside touch?
+    // outside touch
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         dismissKeyboard()
     }
@@ -236,18 +150,12 @@ extension SearchViewController: UISearchBarDelegate {
 
     // 키보드 search 버튼 수행.
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-//        dismissKeyboard()
         searchWord.send(searchBar.text ?? "")
         searchBar.endEditing(true)
-//        webResultVC.view.isHidden = false
     }
 
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
-        suggestionVC.view.isHidden = false
-        webResultVC.view.isHidden = true
-        imageResultVC.view.isHidden = true
-        videoResultVC.view.isHidden = true
-        searchHomeVC.view.isHidden = true
+        coordinator?.showSubViewController(isEdting: true)
         temporarySearchWord.send(searchBar.text ?? "")
     }
 

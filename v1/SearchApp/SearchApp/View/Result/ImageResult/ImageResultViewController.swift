@@ -17,7 +17,7 @@ class ImageResultViewController: UIViewController {
     // MARK: - Properties
     var delegate: ImageResultViewControllerDelegate?
 
-    private let viewModel = ImageResultViewModel()
+    var viewModel: ImageResultViewModel!
 
     // input
     let searchImageSubject: CurrentValueSubject<String, Never> = .init("")

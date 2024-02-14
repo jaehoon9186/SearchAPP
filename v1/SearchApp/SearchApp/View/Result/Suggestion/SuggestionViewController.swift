@@ -17,7 +17,7 @@ class SuggestionViewController: UIViewController {
 
     // MARK: - Properties
     var delegate: SuggestionViewControllerDelegate?
-    let viewModel: SuggestionViewModel = SuggestionViewModel() // needed DI
+    var viewModel: SuggestionViewModel!
 
     private var cancellable = Set<AnyCancellable>()
     // input
