@@ -17,18 +17,14 @@ class ImageResultViewController: UIViewController {
     // MARK: - Properties
     var delegate: ImageResultViewControllerDelegate?
 
-    private let viewModel = ImageResultViewModel()
-    private let input: PassthroughSubject<ImageResultViewModel.Input, Never> = .init()
+    var viewModel: ImageResultViewModel!
 
-    private let resultSubject: PassthroughSubject<ImageSearch, Never> = .init()
+    // input
+    let searchImageSubject: CurrentValueSubject<String, Never> = .init("")
+
     private var cancellable = Set<AnyCancellable>()
 
-    private var isEnd: CurrentValueSubject<Bool, Never> = .init(false)
-
-    private var list: [ImageResult] = []
-    private var nextPage: Int?
-    private var searchWord: String?
-
+    private var button: MoreButtonView?
 
     private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
@@ -55,9 +51,13 @@ class ImageResultViewController: UIViewController {
         
         self.view.backgroundColor = .purple
 
-        bind()
+//        bind()
         configureUI()
         configureDelegate()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        bind()
     }
 
     // MARK: - Actions
@@ -69,55 +69,45 @@ class ImageResultViewController: UIViewController {
         collectionView.delegate = self
     }
 
-    func sendSearchWord(word: String) {
-        searchWord = word
-        input.send(.ImageButtonTap(query: searchWord ?? ""))
-    }
-
-    private func updateResult(result: ImageSearch, nowPage: Int) {
-        if nowPage == 1 {
-            list = []
-            collectionView.reloadData()
-        }
-        nextPage = nowPage + 1
-        resultSubject.send(result)
-    }
 
     private func bind() {
+        let input = ImageResultViewModel.Input(searchImage: searchImageSubject.eraseToAnyPublisher())
 
-        let output = viewModel.transform(input: input.eraseToAnyPublisher())
-        output
+        let output = viewModel.transform(input: input)
+
+        output.fetchFail
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] output in
-                switch output {
-                case .fetchFail(error: let error):
-                    self?.delegate?.goErrorView(error: error)
-                case .fetchImageSucceed(result: let result, nowPage: let nowPage):
-                    self?.updateResult(result: result, nowPage: nowPage)
-                }
+            .sink { [weak self] error in
+                self?.delegate?.goErrorView(error: error)
             }
             .store(in: &cancellable)
-        
-        resultSubject
+
+        output.moreButtonisEnd
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] imageSearch in
-                self?.isEnd.send(imageSearch.meta!.isEnd)
-                self?.collectionViewUpdate(items: imageSearch)
+            .sink { [weak self] _ in
+                self?.button?.button.isEnabled = false
+            }
+            .store(in: &cancellable)
+
+        output.updateUI
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.collectionView.reloadData()
             }
             .store(in: &cancellable)
     }
 
-    private func collectionViewUpdate(items: ImageSearch) {
-        var index = self.list.count
-
-        if let results = items.imageResults {
-            results.forEach({
-                self.list.insert($0, at: index)
-                self.collectionView.insertItems(at: [IndexPath(item: index, section: 0)])
-                index += 1
-            })
-        }
-    }
+//    private func collectionViewUpdate(items: ImageSearch) {
+//        var index = self.list.count
+//
+//        if let results = items.imageResults {
+//            results.forEach({
+//                self.list.insert($0, at: index)
+//                self.collectionView.insertItems(at: [IndexPath(item: index, section: 0)])
+//                index += 1
+//            })
+//        }
+//    }
 
     private func configureUI() {
         view.addSubview(collectionView)
@@ -134,12 +124,13 @@ class ImageResultViewController: UIViewController {
 extension ImageResultViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return list.count
+        viewModel.ImageResultList.count
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CustomCollectionViewCell", for: indexPath) as?  CollectionViewCell {
-            cell.pass.send(list[indexPath.row])
+
+            cell.pass.send(viewModel.ImageResultList[indexPath.row])
 
             return cell
         }
@@ -147,7 +138,7 @@ extension ImageResultViewController: UICollectionViewDelegate, UICollectionViewD
     }
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        self.delegate?.goDetailView(url: list[indexPath.row].docURL)
+        self.delegate?.goDetailView(url: viewModel.ImageResultList[indexPath.row].docURL)
     }
 
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
@@ -160,19 +151,14 @@ extension ImageResultViewController: UICollectionViewDelegate, UICollectionViewD
                 for: indexPath
             ) as! CollectionFooterView
 
-            footer.buttonView = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
+            self.button = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
+
+            footer.buttonView = self.button
 
             footer.buttonView?.onButtonTap = { [weak self] in
-                self?.input.send(.ImageButtonTap(query: self?.searchWord ?? "", page: self?.nextPage ?? 1))
+                self?.searchImageSubject.send(self?.searchImageSubject.value ?? "")
             }
-
-            isEnd
-                .receive(on: DispatchQueue.main)
-                .sink { isEnd in
-                    footer.buttonView?.button.isEnabled = !isEnd
-                }
-                .store(in: &cancellable)
-
+            
             return footer
         default:
             print("default")

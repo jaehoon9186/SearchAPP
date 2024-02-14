@@ -8,41 +8,63 @@
 import Foundation
 import Combine
 
-class ImageResultViewModel {
-    enum Input {
-        case ImageButtonTap(query: String, page: Int = 1)
+class ImageResultViewModel: ViewModelType {
+
+    struct Input {
+        var searchImage: AnyPublisher<String, Never>
     }
 
-    enum Output {
-        case fetchFail(error: Error)
-        case fetchImageSucceed(result: ImageSearch, nowPage: Int)
+    struct Output {
+        var fetchFail: AnyPublisher<Error, Never>
+        var updateUI: AnyPublisher<Void, Never>
+        var moreButtonisEnd: AnyPublisher<Void, Never>
     }
 
     private let apiService: APIService
-    private let output: PassthroughSubject<Output, Never> = .init()
-    private var cancellables = Set<AnyCancellable>()
+    private var cancellable = Set<AnyCancellable>()
+
+    // dataSource
+    private var page: Int = 1
+    var ImageResultList: [ImageResult] = []
+
+    // output
+    private let errorSubject: PassthroughSubject<Error, Never> = .init()
+    private let updateUISubject: PassthroughSubject<Void, Never> = .init()
+    private let moreButtonisEndSubject: PassthroughSubject<Void, Never> = .init()
 
     init(apiService: APIService = APIService()) {
         self.apiService = apiService
     }
 
-    func transform(input: AnyPublisher<Input, Never>) -> AnyPublisher<Output, Never> {
-        input
-            .sink { [weak self] event in
-                switch event {
-                case .ImageButtonTap(let query, let page):
-                    self?.handleGetSearchResult(url: EndPoint.image(query: query, page: page).url, nowPage: page)
+    func transform(input: Input) -> Output {
+        input.searchImage
+            .sink { [weak self] inputWord in
+                self?.handleImageSearchResult(query: inputWord) {
+                    self?.updateUISubject.send()
                 }
             }
-            .store(in: &cancellables)
+            .store(in: &cancellable)
 
-        return output.eraseToAnyPublisher()
+        return Output(fetchFail: errorSubject.eraseToAnyPublisher(),
+                      updateUI: updateUISubject.eraseToAnyPublisher(),
+                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher())
     }
 
-    private func handleGetSearchResult(url: URL?, nowPage: Int) {
+    private func handleImageSearchResult(query: String, completion: @escaping () -> Void) {
+        if query.isEmpty {
+            self.ImageResultList = []
+            completion()
+            return
+        }
+        
         guard let apiKey = Bundle.main.object(forInfoDictionaryKey: "API_KEY") as? String else { return }
 
-        var request = URLRequest (url: url!)
+        guard let url = EndPoint.image(query: query, page: self.page).url else {
+            self.errorSubject.send(APIError.invalidURL)
+            return
+        }
+
+        var request = URLRequest (url: url)
         request.httpMethod = "GET"
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
 
@@ -50,12 +72,19 @@ class ImageResultViewModel {
             .sink { [weak self] completion in
                 switch completion {
                 case .failure(let error):
-                    self?.output.send(Output.fetchFail(error: error))
+                    self?.errorSubject.send(error)
                 case .finished: break
                 }
             } receiveValue: { [weak self] result in
-                self?.output.send(Output.fetchImageSucceed(result: result, nowPage: nowPage))
-            }.store(in: &cancellables)
+                if let meta = result.meta, meta.isEnd {
+                    self?.moreButtonisEndSubject.send()
+                } else {
+                    self?.page += 1
+                }
+
+                self?.ImageResultList += result.imageResults!
+                completion()
+            }.store(in: &cancellable)
     }
 
 }

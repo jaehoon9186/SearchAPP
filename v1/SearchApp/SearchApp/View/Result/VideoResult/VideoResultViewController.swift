@@ -17,17 +17,12 @@ class VideoResultViewController: UIViewController {
     // MARK: - Properties
     var delegate: VideoResultViewControllerDelegate?
 
-    private let viewModel = VideoResultViewModel()
-    private let input: PassthroughSubject<VideoResultViewModel.Input, Never> = .init()
+    var viewModel: VideoResultViewModel!
 
-    private let resultSubject: PassthroughSubject<VideoSearch, Never> = .init()
+    // input
+    let searchVideoSubject: CurrentValueSubject<String, Never> = .init("")
+
     private var cancellable = Set<AnyCancellable>()
-
-    private var isEnd: CurrentValueSubject<Bool, Never> = .init(false)
-
-    private var list: [VideoResult] = []
-    private var nextPage: Int?
-    private var searchWord: String?
 
     private var button: MoreButtonView?
 
@@ -49,56 +44,41 @@ class VideoResultViewController: UIViewController {
         tableView.dataSource = self
         tableView.keyboardDismissMode = .onDrag
 
-        bind()
+        //        bind()
         configureUI()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        bind()
     }
 
     // MARK: - Actions
 
 
     // MARK: - Helpers
-    func sendSearchWord(word: String) {
-        searchWord = word
-        input.send(.videoButtonTap(query: searchWord ?? ""))
-    }
-
-    private func updateResult(result: VideoSearch, nowPage: Int) {
-        if nowPage == 1 {
-            list = []
-        }
-        nextPage = nowPage + 1
-        resultSubject.send(result)
-    }
-
     private func bind() {
-        let output = viewModel.transform(input: input.eraseToAnyPublisher())
-        output
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] output in
-                switch output {
+        let input = VideoResultViewModel.Input(searchWeb: searchVideoSubject.eraseToAnyPublisher())
 
-                case .fetchFail(error: let error):
-                    self?.delegate?.goErrorView(error: error)
-                case .fetchVideoSucceed(result: let result, nowPage: let nowPage):
-                    self?.updateResult(result: result, nowPage: nowPage)
-                }
+        let output = viewModel.transform(input: input)
+
+        output.fetchFail
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                self?.delegate?.goErrorView(error: error)
             }
             .store(in: &cancellable)
 
-        resultSubject
+        output.moreButtonisEnd
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] VideoSearch in
-                self?.isEnd.send(VideoSearch.meta!.isEnd)
-                self?.list += VideoSearch.videoResults!
+            .sink { [weak self] _ in
+                self?.button?.button.isEnabled = false
+            }
+            .store(in: &cancellable)
+
+        output.updateUI
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
                 self?.tableView.reloadData()
-            }
-            .store(in: &cancellable)
-
-
-        isEnd
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isEnd in
-                self?.button?.button.isEnabled = !isEnd
             }
             .store(in: &cancellable)
     }
@@ -108,10 +88,9 @@ class VideoResultViewController: UIViewController {
         button = MoreButtonView(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 100))
 
         button?.onButtonTap = { [weak self] in
-            self?.input.send(.videoButtonTap(query: self?.searchWord ?? "", page: self?.nextPage ?? 1))
+            self?.searchVideoSubject.send(self?.searchVideoSubject.value ?? "")
         }
         self.tableView.tableFooterView = button
-
 
         self.view.addSubview(tableView)
 
@@ -129,31 +108,33 @@ class VideoResultViewController: UIViewController {
 extension VideoResultViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        self.delegate?.goDetailView(url: list[indexPath.row].url)
+        self.delegate?.goDetailView(url: viewModel.videoResultList[indexPath.row].url)
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        list.count
+        viewModel.videoResultList.count
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        // dynamic height? 적용할 것
+        // dynamic height?
         300
     }
 
-//    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
-//        return UITableView.automaticDimension
-//    }
+    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        return UITableView.automaticDimension
+    }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if let cell = tableView.dequeueReusableCell(withIdentifier: "videoTableViewCell", for: indexPath) as? VideoTableViewCell {
 
-            let time = list[indexPath.row].playTime
+            let result = viewModel.videoResultList[indexPath.row]
 
-            cell.passURL.send(list[indexPath.row].thumbnail)
+            let time = result.playTime
+
+            cell.passURL.send(result.thumbnail)
             cell.playTime.text = "\(time / 60)m \(time % 60)s"
-            cell.title.text = list[indexPath.row].title.decodeHTML
-            cell.datetime.text = list[indexPath.row].datetime.dateString
+            cell.title.text = result.title.decodeHTML
+            cell.datetime.text = result.datetime.dateString
         }
         return UITableViewCell()
     }
