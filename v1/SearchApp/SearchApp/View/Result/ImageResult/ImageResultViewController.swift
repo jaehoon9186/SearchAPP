@@ -8,14 +8,14 @@
 import UIKit
 import Combine
 
-protocol ImageResultViewControllerDelegate {
+protocol ImageResultViewControllerDelegate: AnyObject {
     func goErrorView(error: Error)
     func goDetailView(url: String)
 }
 
 class ImageResultViewController: UIViewController {
     // MARK: - Properties
-    var delegate: ImageResultViewControllerDelegate?
+    weak var delegate: ImageResultViewControllerDelegate?
 
     var viewModel: ImageResultViewModel!
 

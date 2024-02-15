@@ -8,14 +8,14 @@
 import UIKit
 import Combine
 
-protocol VideoResultViewControllerDelegate {
+protocol VideoResultViewControllerDelegate: AnyObject {
     func goErrorView(error: Error)
     func goDetailView(url: String)
 }
 
 class VideoResultViewController: UIViewController {
     // MARK: - Properties
-    var delegate: VideoResultViewControllerDelegate?
+    weak var delegate: VideoResultViewControllerDelegate?
 
     var viewModel: VideoResultViewModel!
 

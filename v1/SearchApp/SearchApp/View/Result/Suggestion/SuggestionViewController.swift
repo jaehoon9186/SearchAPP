@@ -8,7 +8,7 @@
 import UIKit
 import Combine
 
-protocol SuggestionViewControllerDelegate {
+protocol SuggestionViewControllerDelegate: AnyObject {
     func updateSearchBar(word: String)
     func goErrorView(error: Error)
 }
@@ -16,7 +16,7 @@ protocol SuggestionViewControllerDelegate {
 class SuggestionViewController: UIViewController {
 
     // MARK: - Properties
-    var delegate: SuggestionViewControllerDelegate?
+    weak var delegate: SuggestionViewControllerDelegate?
     var viewModel: SuggestionViewModel!
 
     private var cancellable = Set<AnyCancellable>()

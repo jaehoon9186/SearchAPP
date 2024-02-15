@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 import Combine
 
-protocol WebResultViewControllerDelegate {
+protocol WebResultViewControllerDelegate: AnyObject {
     func goErrorView(error: Error)
     func goDetailView(url: String)
 }
@@ -18,7 +18,7 @@ protocol WebResultViewControllerDelegate {
 class WebResultViewController: UIViewController {
     // MARK: - Properties
 
-    var delegate: WebResultViewControllerDelegate?
+    weak var delegate: WebResultViewControllerDelegate?
     var viewModel: WebResultViewModel!
 
     // input
