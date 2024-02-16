@@ -16,21 +16,20 @@ class WebResultViewModel: ViewModelType {
 
     struct Output {
         var fetchFail: AnyPublisher<Error, Never>
-        var updateUI: AnyPublisher<Void, Never>
         var moreButtonisEnd: AnyPublisher<Void, Never>
+        var fetchWebResult: AnyPublisher<[WebResult], Never>
     }
 
     private let apiService: APIService
     private var cancellable = Set<AnyCancellable>()
 
-    // dataSource
+    // with api
     private var page: Int = 1
-    var webResultList: [WebResult] = []
 
     // output
     private let errorSubject: PassthroughSubject<Error, Never> = .init()
-    private let updateUISubject: PassthroughSubject<Void, Never> = .init()
     private let moreButtonisEndSubject: PassthroughSubject<Void, Never> = .init()
+    private let webResultSubject: PassthroughSubject<[WebResult], Never> = .init()
 
     init(apiService: APIService = APIService()) {
         self.apiService = apiService
@@ -40,21 +39,18 @@ class WebResultViewModel: ViewModelType {
 
         input.searchWeb
             .sink { [weak self] inputWord in
-                self?.handleWebSearchResult(query: inputWord) {
-                    self?.updateUISubject.send()
-                }
+                self?.handleGetWebSearchResult(query: inputWord)
             }
             .store(in: &cancellable)
 
         return Output(fetchFail: errorSubject.eraseToAnyPublisher(),
-                      updateUI: updateUISubject.eraseToAnyPublisher(),
-                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher())
+                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher(),
+                      fetchWebResult: webResultSubject.eraseToAnyPublisher())
     }
 
-    private func handleWebSearchResult(query: String, completion: @escaping () -> Void) {
+    private func handleGetWebSearchResult(query: String) {
         if query.isEmpty {
-            self.webResultList = []
-            completion()
+            self.webResultSubject.send([])
             return
         }
 
@@ -84,8 +80,10 @@ class WebResultViewModel: ViewModelType {
                     self?.page += 1
                 }
 
-                self?.webResultList += result.webResults!
-                completion()
+                if let webResultList = result.webResults {
+                    self?.webResultSubject.send(webResultList)
+                }
+
             }.store(in: &cancellable)
     }
     

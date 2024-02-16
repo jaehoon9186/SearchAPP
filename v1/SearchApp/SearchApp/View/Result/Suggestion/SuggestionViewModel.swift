@@ -17,18 +17,17 @@ class SuggestionViewModel: ViewModelType {
 
     struct Output {
         var fetchFail: AnyPublisher<Error, Never>
-        var updateUI: AnyPublisher<Void, Never>
+        var fetchRecords: AnyPublisher<[SearchRecord], Never>
+        var fetchSuggestion: AnyPublisher<Suggestion, Never>
     }
 
     private var cancellable = Set<AnyCancellable>()
     private let apiService: APIService
 
-    var suggestion: Suggestion = Suggestion(suggestedWords: [])
-    var records: [SearchRecord] = []
-
     // output
     private let errorSubject: PassthroughSubject<Error, Never> = .init()
-    private let updateUISubject: PassthroughSubject<Void, Never> = .init()
+    private let recordsSubject: PassthroughSubject<[SearchRecord], Never> = .init()
+    private let SuggestionSubject: PassthroughSubject<Suggestion, Never> = .init()
 
     init(apiService: APIService = APIService()) {
         self.apiService = apiService
@@ -37,29 +36,24 @@ class SuggestionViewModel: ViewModelType {
     func transform(input: Input) -> Output {
         input.recordRemoveButtonTap.sink { [weak self] searchRecord in
             self?.removeOneRecord(object: searchRecord)
-            self?.updateUISubject.send()
         }.store(in: &cancellable)
-
 
         input.searchWord
             .sink { [weak self] inputWord in
-                self?.handleSuggestion(query: inputWord, completion: {
-                    self?.handleRecordWords(query: inputWord, completion: {
-                        self?.updateUISubject.send()
-                    })
-                })
+                self?.handleGetRecordWords(query: inputWord)
+                self?.handleGetSuggestion(query: inputWord)
             }
             .store(in: &cancellable)
 
         return Output(fetchFail: errorSubject.eraseToAnyPublisher(),
-                      updateUI: updateUISubject.eraseToAnyPublisher())
+                      fetchRecords: recordsSubject.eraseToAnyPublisher(),
+                      fetchSuggestion: SuggestionSubject.eraseToAnyPublisher())
     }
 
-    private func handleSuggestion(query: String, completion: @escaping () -> Void) {
+    private func handleGetSuggestion(query: String) {
         let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if str.isEmpty {
-            self.suggestion = Suggestion(suggestedWords: [])
-            completion()
+            self.SuggestionSubject.send(Suggestion(suggestedWords: []))
             return
         }
 
@@ -74,12 +68,11 @@ class SuggestionViewModel: ViewModelType {
             case .finished: break
             }
         } receiveValue: { [weak self] suggestion in
-            self?.suggestion = suggestion
-            completion()
+            self?.SuggestionSubject.send(suggestion)
         }.store(in: &cancellable)
     }
 
-    private func handleRecordWords(query: String, completion: @escaping () -> Void) {
+    private func handleGetRecordWords(query: String) {
         let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let count = str.isEmpty ? 10 : 3
 
@@ -88,9 +81,8 @@ class SuggestionViewModel: ViewModelType {
                 .sink { [weak self] records in
                     var result = records.filter { $0.word!.hasPrefix(str) }
                     result = zip(result, (0..<count)).map { $0.0 }
-                    self?.records = result
+                    self?.recordsSubject.send(result)
                 }.store(in: &cancellable)
-            completion()
         } catch {
             self.errorSubject.send(error)
         }
@@ -99,7 +91,6 @@ class SuggestionViewModel: ViewModelType {
     private func removeOneRecord(object: SearchRecord) {
         do {
             try CoreDataManager.shard.deleteObject(object: object)
-            self.records.remove(at: records.firstIndex(of: object)!)
         } catch {
             self.errorSubject.send(error)
         }

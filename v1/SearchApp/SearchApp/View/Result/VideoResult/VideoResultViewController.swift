@@ -16,13 +16,14 @@ protocol VideoResultViewControllerDelegate: AnyObject {
 class VideoResultViewController: UIViewController {
     // MARK: - Properties
     weak var delegate: VideoResultViewControllerDelegate?
-
     var viewModel: VideoResultViewModel!
 
+    private var cancellable = Set<AnyCancellable>()
     // input
     let searchVideoSubject: CurrentValueSubject<String, Never> = .init("")
 
-    private var cancellable = Set<AnyCancellable>()
+    // dataSource
+    private var videoResultList: [VideoResult] = []
 
     private var button: MoreButtonView?
 
@@ -75,9 +76,10 @@ class VideoResultViewController: UIViewController {
             }
             .store(in: &cancellable)
 
-        output.updateUI
+        output.fetchVideoResult
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] videoResultList in
+                self?.videoResultList += videoResultList
                 self?.tableView.reloadData()
             }
             .store(in: &cancellable)
@@ -108,11 +110,11 @@ class VideoResultViewController: UIViewController {
 extension VideoResultViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        self.delegate?.goDetailView(url: viewModel.videoResultList[indexPath.row].url)
+        self.delegate?.goDetailView(url: self.videoResultList[indexPath.row].url)
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        viewModel.videoResultList.count
+        self.videoResultList.count
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -127,7 +129,7 @@ extension VideoResultViewController: UITableViewDelegate, UITableViewDataSource 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if let cell = tableView.dequeueReusableCell(withIdentifier: "videoTableViewCell", for: indexPath) as? VideoTableViewCell {
 
-            let result = viewModel.videoResultList[indexPath.row]
+            let result = self.videoResultList[indexPath.row]
 
             let time = result.playTime
 

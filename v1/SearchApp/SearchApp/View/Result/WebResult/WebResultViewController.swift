@@ -17,14 +17,15 @@ protocol WebResultViewControllerDelegate: AnyObject {
 
 class WebResultViewController: UIViewController {
     // MARK: - Properties
-
     weak var delegate: WebResultViewControllerDelegate?
     var viewModel: WebResultViewModel!
 
+    private var cancellable = Set<AnyCancellable>()
     // input
     let searchWebSubject: CurrentValueSubject<String, Never> = .init("")
 
-    private var cancellable = Set<AnyCancellable>()
+    // dataSource
+    private var webResultList: [WebResult] = []
 
     private var button: MoreButtonView?
 
@@ -58,7 +59,6 @@ class WebResultViewController: UIViewController {
 
 
     // MARK: - Helpers
-
     private func bind() {
         let input = WebResultViewModel.Input(searchWeb: searchWebSubject.eraseToAnyPublisher())
 
@@ -78,9 +78,10 @@ class WebResultViewController: UIViewController {
             }
             .store(in: &cancellable)
 
-        output.updateUI
+        output.fetchWebResult
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] webResultList in
+                self?.webResultList += webResultList
                 self?.tableView.reloadData()
             }
             .store(in: &cancellable)
@@ -109,11 +110,11 @@ class WebResultViewController: UIViewController {
 extension WebResultViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        self.delegate?.goDetailView(url: viewModel.webResultList[indexPath.row].url)
+        self.delegate?.goDetailView(url: self.webResultList[indexPath.row].url)
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        viewModel.webResultList.count
+        self.webResultList.count
     }
 
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -123,7 +124,7 @@ extension WebResultViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         if let cell = tableView.dequeueReusableCell(withIdentifier: "webTableViewCell", for: indexPath) as? WebTableViewCell {
-            let result = viewModel.webResultList[indexPath.row]
+            let result = self.webResultList[indexPath.row]
             cell.title.text = result.title.decodeHTML
             cell.contents.text = result.contents.decodeHTML
             cell.date.text = result.datetime.dateString

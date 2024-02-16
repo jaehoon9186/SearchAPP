@@ -25,7 +25,7 @@ class VideoTableViewCell: UITableViewCell {
 
     private let thumbnail: UIImageView = {
         let imageView = UIImageView()
-        imageView.backgroundColor = .systemPink
+        imageView.backgroundColor = .systemGray
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
         imageView.translatesAutoresizingMaskIntoConstraints = false

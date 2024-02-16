@@ -16,13 +16,14 @@ protocol ImageResultViewControllerDelegate: AnyObject {
 class ImageResultViewController: UIViewController {
     // MARK: - Properties
     weak var delegate: ImageResultViewControllerDelegate?
-
     var viewModel: ImageResultViewModel!
 
+    private var cancellable = Set<AnyCancellable>()
     // input
     let searchImageSubject: CurrentValueSubject<String, Never> = .init("")
 
-    private var cancellable = Set<AnyCancellable>()
+    // dataSource
+    private var imageResultList: [ImageResult] = []
 
     private var button: MoreButtonView?
 
@@ -89,25 +90,23 @@ class ImageResultViewController: UIViewController {
             }
             .store(in: &cancellable)
 
-        output.updateUI
+        output.fetchImageResult
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.collectionView.reloadData()
+            .sink { [weak self] imageResultList in
+                self?.collectionViewAddItems(list: imageResultList)
             }
             .store(in: &cancellable)
     }
 
-//    private func collectionViewUpdate(items: ImageSearch) {
-//        var index = self.list.count
-//
-//        if let results = items.imageResults {
-//            results.forEach({
-//                self.list.insert($0, at: index)
-//                self.collectionView.insertItems(at: [IndexPath(item: index, section: 0)])
-//                index += 1
-//            })
-//        }
-//    }
+    private func collectionViewAddItems(list: [ImageResult]) {
+        var insertIndex = self.imageResultList.count
+
+        list.forEach {
+            self.imageResultList.insert($0, at: insertIndex)
+            self.collectionView.insertItems(at: [IndexPath(item: insertIndex, section: 0)])
+            insertIndex += 1
+        }
+    }
 
     private func configureUI() {
         view.addSubview(collectionView)
@@ -124,13 +123,13 @@ class ImageResultViewController: UIViewController {
 extension ImageResultViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        viewModel.ImageResultList.count
+        self.imageResultList.count
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CustomCollectionViewCell", for: indexPath) as?  CollectionViewCell {
 
-            cell.pass.send(viewModel.ImageResultList[indexPath.row])
+            cell.pass.send(self.imageResultList[indexPath.row])
 
             return cell
         }
@@ -138,7 +137,7 @@ extension ImageResultViewController: UICollectionViewDelegate, UICollectionViewD
     }
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        self.delegate?.goDetailView(url: viewModel.ImageResultList[indexPath.row].docURL)
+        self.delegate?.goDetailView(url: self.imageResultList[indexPath.row].docURL)
     }
 
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {

@@ -16,21 +16,20 @@ class VideoResultViewModel: ViewModelType {
 
     struct Output {
         var fetchFail: AnyPublisher<Error, Never>
-        var updateUI: AnyPublisher<Void, Never>
         var moreButtonisEnd: AnyPublisher<Void, Never>
+        var fetchVideoResult: AnyPublisher<[VideoResult], Never>
     }
 
     private let apiService: APIService
     private var cancellable = Set<AnyCancellable>()
 
-    // dataSource
+    // with api
     private var page: Int = 1
-    var videoResultList: [VideoResult] = []
 
     // output
     private let errorSubject: PassthroughSubject<Error, Never> = .init()
-    private let updateUISubject: PassthroughSubject<Void, Never> = .init()
     private let moreButtonisEndSubject: PassthroughSubject<Void, Never> = .init()
+    private let videoResultSubject: PassthroughSubject<[VideoResult], Never> = .init()
 
     init(apiService: APIService = APIService()) {
         self.apiService = apiService
@@ -40,21 +39,18 @@ class VideoResultViewModel: ViewModelType {
 
         input.searchWeb
             .sink { [weak self] inputWord in
-                self?.handleVideoSearchResult(query: inputWord) {
-                    self?.updateUISubject.send()
-                }
+                self?.handleGetVideoSearchResult(query: inputWord)
             }
             .store(in: &cancellable)
 
         return Output(fetchFail: errorSubject.eraseToAnyPublisher(),
-                      updateUI: updateUISubject.eraseToAnyPublisher(),
-                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher())
+                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher(),
+                      fetchVideoResult: videoResultSubject.eraseToAnyPublisher())
     }
 
-    private func handleVideoSearchResult(query: String, completion: @escaping () -> Void) {
+    private func handleGetVideoSearchResult(query: String) {
         if query.isEmpty {
-            self.videoResultList = []
-            completion()
+            self.videoResultSubject.send([])
             return
         }
 
@@ -83,8 +79,9 @@ class VideoResultViewModel: ViewModelType {
                     self?.page += 1
                 }
 
-                self?.videoResultList += result.videoResults!
-                completion()
+                if let videoResultList = result.videoResults {
+                    self?.videoResultSubject.send(videoResultList)
+                }
             }.store(in: &cancellable)
     }
 

@@ -274,9 +274,9 @@
 			isa = PBXGroup;
 			children = (
 				0970CA3D2B2C708300EBB434 /* SuggestionViewController.swift */,
+				09B639C52B7272B600FAC9EE /* SuggestionViewModel.swift */,
 				0970CA8D2B51A36A00EBB434 /* RecordTableViewCell.swift */,
 				0970CA8F2B51A37600EBB434 /* SuggestionTableViewCell.swift */,
-				09B639C52B7272B600FAC9EE /* SuggestionViewModel.swift */,
 			);
 			path = Suggestion;
 			sourceTree = "<group>";

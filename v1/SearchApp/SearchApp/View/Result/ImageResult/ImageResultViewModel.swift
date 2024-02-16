@@ -16,21 +16,20 @@ class ImageResultViewModel: ViewModelType {
 
     struct Output {
         var fetchFail: AnyPublisher<Error, Never>
-        var updateUI: AnyPublisher<Void, Never>
         var moreButtonisEnd: AnyPublisher<Void, Never>
+        var fetchImageResult: AnyPublisher<[ImageResult], Never>
     }
 
     private let apiService: APIService
     private var cancellable = Set<AnyCancellable>()
 
-    // dataSource
+    // with api
     private var page: Int = 1
-    var ImageResultList: [ImageResult] = []
 
     // output
     private let errorSubject: PassthroughSubject<Error, Never> = .init()
-    private let updateUISubject: PassthroughSubject<Void, Never> = .init()
     private let moreButtonisEndSubject: PassthroughSubject<Void, Never> = .init()
+    private let imageResultSubject: PassthroughSubject<[ImageResult], Never> = .init()
 
     init(apiService: APIService = APIService()) {
         self.apiService = apiService
@@ -39,21 +38,18 @@ class ImageResultViewModel: ViewModelType {
     func transform(input: Input) -> Output {
         input.searchImage
             .sink { [weak self] inputWord in
-                self?.handleImageSearchResult(query: inputWord) {
-                    self?.updateUISubject.send()
-                }
+                self?.handleGetImageSearchResult(query: inputWord)
             }
             .store(in: &cancellable)
 
         return Output(fetchFail: errorSubject.eraseToAnyPublisher(),
-                      updateUI: updateUISubject.eraseToAnyPublisher(),
-                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher())
+                      moreButtonisEnd: moreButtonisEndSubject.eraseToAnyPublisher(),
+                      fetchImageResult: imageResultSubject.eraseToAnyPublisher())
     }
 
-    private func handleImageSearchResult(query: String, completion: @escaping () -> Void) {
+    private func handleGetImageSearchResult(query: String) {
         if query.isEmpty {
-            self.ImageResultList = []
-            completion()
+            self.imageResultSubject.send([])
             return
         }
         
@@ -82,8 +78,9 @@ class ImageResultViewModel: ViewModelType {
                     self?.page += 1
                 }
 
-                self?.ImageResultList += result.imageResults!
-                completion()
+                if let imageResultList = result.imageResults {
+                    self?.imageResultSubject.send(imageResultList)
+                }
             }.store(in: &cancellable)
     }
 

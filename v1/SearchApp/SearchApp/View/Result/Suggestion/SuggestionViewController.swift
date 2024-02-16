@@ -24,6 +24,10 @@ class SuggestionViewController: UIViewController {
     private let removeRecordSubject: PassthroughSubject<SearchRecord, Never> = .init()
     private let searchWordSubject: PassthroughSubject<String, Never> = .init()
 
+    // DataSource
+    private var records: [SearchRecord] = []
+    private var suggestion: Suggestion = Suggestion(suggestedWords: [])
+
     private let tableView: UITableView = {
         let tableView = UITableView()
 
@@ -41,7 +45,7 @@ class SuggestionViewController: UIViewController {
         tableView.dataSource = self
         tableView.keyboardDismissMode = .onDrag
 
-//        bind()
+        //        bind()
         configureUI()
     }
 
@@ -66,11 +70,21 @@ class SuggestionViewController: UIViewController {
                 self?.delegate?.goErrorView(error: error)
             }.store(in: &cancellable)
 
-        output.updateUI
+        output.fetchRecords
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] recordList in
+                self?.records = recordList
                 self?.tableView.reloadData()
-            }.store(in: &cancellable)
+            }
+            .store(in: &cancellable)
+
+        output.fetchSuggestion
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] suggestion in
+                self?.suggestion = suggestion
+                self?.tableView.reloadData()
+            }
+            .store(in: &cancellable)
 
         if let parentView = parent as? SearchViewController {
             parentView.temporarySearchWord
@@ -104,17 +118,17 @@ extension SuggestionViewController: UITableViewDelegate, UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if indexPath.section == 0 {
-            self.delegate?.updateSearchBar(word: viewModel.records[indexPath.row].word!)
+            self.delegate?.updateSearchBar(word: self.records[indexPath.row].word!)
         } else {
-            self.delegate?.updateSearchBar(word: viewModel.suggestion.suggestedWords[indexPath.row])
+            self.delegate?.updateSearchBar(word: self.suggestion.suggestedWords[indexPath.row])
         }
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if section == 0 {
-            return viewModel.records.count
+            return self.records.count
         } else {
-            return viewModel.suggestion.suggestedWords.count
+            return self.suggestion.suggestedWords.count
         }
     }
 
@@ -123,15 +137,17 @@ extension SuggestionViewController: UITableViewDelegate, UITableViewDataSource {
         if indexPath.section == 0 {
             let cell = tableView.dequeueReusableCell(withIdentifier: "recordCell", for: indexPath) as! RecordTableViewCell
             cell.onTapDeleteButton = { [weak self] in
-                if let record = self?.viewModel.records[indexPath.row] {
+                if let record = self?.records[indexPath.row], let index = self?.records.firstIndex(of: record) {
+                    self?.records.remove(at: index)
                     self?.removeRecordSubject.send(record)
+                    self?.tableView.reloadData()
                 }
             }
-            cell.word.text = viewModel.records[indexPath.row].word!
+            cell.word.text = self.records[indexPath.row].word!
             return cell
         } else {
             let cell = tableView.dequeueReusableCell(withIdentifier: "suggestionCell", for: indexPath) as! SuggestionTableViewCell
-            cell.word.text = viewModel.suggestion.suggestedWords[indexPath.row]
+            cell.word.text = self.suggestion.suggestedWords[indexPath.row]
             return cell
         }
     }
