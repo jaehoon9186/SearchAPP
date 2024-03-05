@@ -54,6 +54,11 @@
 		0970CA982B546E9100EBB434 /* PaddingLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0970CA972B546E9100EBB434 /* PaddingLabel.swift */; };
 		09B639C62B7272B600FAC9EE /* SuggestionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B639C52B7272B600FAC9EE /* SuggestionViewModel.swift */; };
 		09B639C82B7274B100FAC9EE /* ViewModelType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B639C72B7274B100FAC9EE /* ViewModelType.swift */; };
+		09B639CA2B86EF6C00FAC9EE /* APIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B639C92B86EF6C00FAC9EE /* APIServiceTests.swift */; };
+		09B639CC2B885FB200FAC9EE /* MockAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B639CB2B885FB200FAC9EE /* MockAPIService.swift */; };
+		09B639CE2B889CA400FAC9EE /* WebSearchResponse.json in Resources */ = {isa = PBXBuildFile; fileRef = 09B639CD2B889CA400FAC9EE /* WebSearchResponse.json */; };
+		09B639D02B88AD1100FAC9EE /* JSONLoadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B639CF2B88AD1100FAC9EE /* JSONLoadable.swift */; };
+		09B639D32B95A7EB00FAC9EE /* MockURLSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B639D22B95A7EB00FAC9EE /* MockURLSession.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -126,6 +131,11 @@
 		0970CA972B546E9100EBB434 /* PaddingLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaddingLabel.swift; sourceTree = "<group>"; };
 		09B639C52B7272B600FAC9EE /* SuggestionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionViewModel.swift; sourceTree = "<group>"; };
 		09B639C72B7274B100FAC9EE /* ViewModelType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelType.swift; sourceTree = "<group>"; };
+		09B639C92B86EF6C00FAC9EE /* APIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIServiceTests.swift; sourceTree = "<group>"; };
+		09B639CB2B885FB200FAC9EE /* MockAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockAPIService.swift; sourceTree = "<group>"; };
+		09B639CD2B889CA400FAC9EE /* WebSearchResponse.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = WebSearchResponse.json; sourceTree = "<group>"; };
+		09B639CF2B88AD1100FAC9EE /* JSONLoadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONLoadable.swift; sourceTree = "<group>"; };
+		09B639D22B95A7EB00FAC9EE /* MockURLSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLSession.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -193,7 +203,12 @@
 		0954BABA2B1DB8B7008B36AB /* SearchAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				09B639D12B88D6CC00FAC9EE /* JSON */,
 				0954BABB2B1DB8B7008B36AB /* SearchAppTests.swift */,
+				09B639C92B86EF6C00FAC9EE /* APIServiceTests.swift */,
+				09B639D22B95A7EB00FAC9EE /* MockURLSession.swift */,
+				09B639CB2B885FB200FAC9EE /* MockAPIService.swift */,
+				09B639CF2B88AD1100FAC9EE /* JSONLoadable.swift */,
 			);
 			path = SearchAppTests;
 			sourceTree = "<group>";
@@ -371,6 +386,14 @@
 			path = AppDelegate;
 			sourceTree = "<group>";
 		};
+		09B639D12B88D6CC00FAC9EE /* JSON */ = {
+			isa = PBXGroup;
+			children = (
+				09B639CD2B889CA400FAC9EE /* WebSearchResponse.json */,
+			);
+			path = JSON;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -484,6 +507,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				09B639CE2B889CA400FAC9EE /* WebSearchResponse.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -550,7 +574,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				09B639CC2B885FB200FAC9EE /* MockAPIService.swift in Sources */,
+				09B639CA2B86EF6C00FAC9EE /* APIServiceTests.swift in Sources */,
 				0954BABC2B1DB8B7008B36AB /* SearchAppTests.swift in Sources */,
+				09B639D32B95A7EB00FAC9EE /* MockURLSession.swift in Sources */,
+				09B639D02B88AD1100FAC9EE /* JSONLoadable.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
