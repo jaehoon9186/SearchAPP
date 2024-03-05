@@ -8,6 +8,6 @@
 import Foundation
 
 // MARK: - Suggestion
-struct Suggestion {
+struct Suggestion: Codable {
     let suggestedWords: [String]
 }
