@@ -20,7 +20,7 @@ class WebResultViewModel: ViewModelType {
         var fetchWebResult: AnyPublisher<[WebResult], Never>
     }
 
-    private let apiService: APIService
+    private let apiService: APIServiceProtocol
     private var cancellable = Set<AnyCancellable>()
 
     // with api
@@ -31,7 +31,7 @@ class WebResultViewModel: ViewModelType {
     private let moreButtonisEndSubject: PassthroughSubject<Void, Never> = .init()
     private let webResultSubject: PassthroughSubject<[WebResult], Never> = .init()
 
-    init(apiService: APIService = APIService()) {
+    init(apiService: APIServiceProtocol = APIService()) {
         self.apiService = apiService
     }
 
@@ -65,7 +65,7 @@ class WebResultViewModel: ViewModelType {
         request.httpMethod = "GET"
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
 
-        apiService.getFetchResult(type: WebSearch.self, request: request)
+        apiService.getFetchSearch(type: WebSearch.self, request: request)
             .sink { [weak self] completion in
                 switch completion {
                 case .failure(let error):

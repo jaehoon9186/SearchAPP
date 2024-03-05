@@ -22,14 +22,14 @@ class SuggestionViewModel: ViewModelType {
     }
 
     private var cancellable = Set<AnyCancellable>()
-    private let apiService: APIService
+    private let apiService: APIServiceProtocol
 
     // output
     private let errorSubject: PassthroughSubject<Error, Never> = .init()
     private let recordsSubject: PassthroughSubject<[SearchRecord], Never> = .init()
-    private let SuggestionSubject: PassthroughSubject<Suggestion, Never> = .init()
+    private let suggestionSubject: PassthroughSubject<Suggestion, Never> = .init()
 
-    init(apiService: APIService = APIService()) {
+    init(apiService: APIServiceProtocol = APIService()) {
         self.apiService = apiService
     }
 
@@ -47,13 +47,13 @@ class SuggestionViewModel: ViewModelType {
 
         return Output(fetchFail: errorSubject.eraseToAnyPublisher(),
                       fetchRecords: recordsSubject.eraseToAnyPublisher(),
-                      fetchSuggestion: SuggestionSubject.eraseToAnyPublisher())
+                      fetchSuggestion: suggestionSubject.eraseToAnyPublisher())
     }
 
     private func handleGetSuggestion(query: String) {
         let str = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if str.isEmpty {
-            self.SuggestionSubject.send(Suggestion(suggestedWords: []))
+            self.suggestionSubject.send(Suggestion(suggestedWords: []))
             return
         }
 
@@ -68,7 +68,7 @@ class SuggestionViewModel: ViewModelType {
             case .finished: break
             }
         } receiveValue: { [weak self] suggestion in
-            self?.SuggestionSubject.send(suggestion)
+            self?.suggestionSubject.send(suggestion)
         }.store(in: &cancellable)
     }
 

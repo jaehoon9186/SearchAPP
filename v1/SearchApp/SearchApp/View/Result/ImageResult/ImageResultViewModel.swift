@@ -20,7 +20,7 @@ class ImageResultViewModel: ViewModelType {
         var fetchImageResult: AnyPublisher<[ImageResult], Never>
     }
 
-    private let apiService: APIService
+    private let apiService: APIServiceProtocol
     private var cancellable = Set<AnyCancellable>()
 
     // with api
@@ -64,7 +64,7 @@ class ImageResultViewModel: ViewModelType {
         request.httpMethod = "GET"
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
 
-        apiService.getFetchResult(type: ImageSearch.self, request: request)
+        apiService.getFetchSearch(type: ImageSearch.self, request: request)
             .sink { [weak self] completion in
                 switch completion {
                 case .failure(let error):

@@ -20,7 +20,7 @@ class VideoResultViewModel: ViewModelType {
         var fetchVideoResult: AnyPublisher<[VideoResult], Never>
     }
 
-    private let apiService: APIService
+    private let apiService: APIServiceProtocol
     private var cancellable = Set<AnyCancellable>()
 
     // with api
@@ -31,7 +31,7 @@ class VideoResultViewModel: ViewModelType {
     private let moreButtonisEndSubject: PassthroughSubject<Void, Never> = .init()
     private let videoResultSubject: PassthroughSubject<[VideoResult], Never> = .init()
 
-    init(apiService: APIService = APIService()) {
+    init(apiService: APIServiceProtocol = APIService()) {
         self.apiService = apiService
     }
 
@@ -65,7 +65,7 @@ class VideoResultViewModel: ViewModelType {
         request.httpMethod = "GET"
         request.allHTTPHeaderFields = ["Authorization": "KakaoAK \(apiKey)"]
 
-        apiService.getFetchResult(type: VideoSearch.self, request: request)
+        apiService.getFetchSearch(type: VideoSearch.self, request: request)
             .sink { [weak self] completion in
                 switch completion {
                 case .failure(let error):
